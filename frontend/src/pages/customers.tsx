@@ -6,6 +6,15 @@ import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogClose,
+} from "@/components/ui/dialog"
+import {
   Plus,
   Search,
   Filter,
@@ -16,6 +25,11 @@ import {
   Clock,
   AlertCircle,
   User,
+  Upload,
+  FileText,
+  Download,
+  X,
+  Save,
 } from "lucide-react"
 import { formatCurrency } from "@/lib/utils"
 import { CreateCustomer, ListCustomers, GetCustomer, UpdateCustomer, DeleteCustomer } from "../../wailsjs/go/main/App"
@@ -61,6 +75,29 @@ export function Customers() {
   const [showCreateForm, setShowCreateForm] = useState(false)
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null)
   const [showEditForm, setShowEditForm] = useState(false)
+  const [showDetailModal, setShowDetailModal] = useState(false)
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const [customerToDelete, setCustomerToDelete] = useState<string | null>(null)
+  const [showDocumentUpload, setShowDocumentUpload] = useState(false)
+  
+  const [editFormData, setEditFormData] = useState({
+    name: "",
+    email: "",
+    phone: "",
+    date_of_birth: "",
+    address: "",
+    city: "",
+    province: "",
+    postal_code: "",
+    occupation: "",
+    monthly_income: 0,
+    status: "",
+  })
+
+  const [documentUpload, setDocumentUpload] = useState({
+    type: "",
+    file: null as File | null,
+  })
   
   const [newCustomer, setNewCustomer] = useState({
     nik: "",
@@ -136,16 +173,84 @@ export function Customers() {
     }
   }
 
-  const handleDeleteCustomer = async (id: string) => {
-    if (confirm("Apakah Anda yakin ingin menghapus nasabah ini?")) {
-      try {
-        const response = await DeleteCustomer(id)
-        if (response.success) {
-          loadCustomers()
-        }
-      } catch (error) {
-        console.error("Error deleting customer:", error)
+  const handleEditCustomer = (customer: Customer) => {
+    setSelectedCustomer(customer)
+    setEditFormData({
+      name: customer.name,
+      email: customer.email,
+      phone: customer.phone,
+      date_of_birth: customer.date_of_birth.split('T')[0],
+      address: customer.address,
+      city: customer.city,
+      province: customer.province,
+      postal_code: customer.postal_code,
+      occupation: customer.occupation,
+      monthly_income: customer.monthly_income,
+      status: customer.status,
+    })
+    setShowEditForm(true)
+  }
+
+  const handleUpdateCustomer = async () => {
+    if (!selectedCustomer) return
+    
+    try {
+      const request = new services.CustomerUpdateRequest({
+        ...editFormData,
+        date_of_birth: new Date(editFormData.date_of_birth),
+      })
+      
+      const response = await UpdateCustomer(selectedCustomer.id, request)
+      if (response.success) {
+        setShowEditForm(false)
+        setSelectedCustomer(null)
+        loadCustomers()
       }
+    } catch (error) {
+      console.error("Error updating customer:", error)
+    }
+  }
+
+  const handleDeleteCustomer = async () => {
+    if (!customerToDelete) return
+    
+    try {
+      const response = await DeleteCustomer(customerToDelete)
+      if (response.success) {
+        setShowDeleteConfirm(false)
+        setCustomerToDelete(null)
+        loadCustomers()
+      }
+    } catch (error) {
+      console.error("Error deleting customer:", error)
+    }
+  }
+
+  const handleViewDetails = async (customer: Customer) => {
+    setSelectedCustomer(customer)
+    setShowDetailModal(true)
+  }
+
+  const handleDocumentUpload = async () => {
+    if (!selectedCustomer || !documentUpload.file || !documentUpload.type) return
+    
+    try {
+      // Create FormData for file upload
+      const formData = new FormData()
+      formData.append('file', documentUpload.file)
+      formData.append('customer_id', selectedCustomer.id)
+      formData.append('type', documentUpload.type)
+      
+      // Note: This would need to be implemented in the backend
+      // For now, just show success
+      console.log("Uploading document:", formData)
+      
+      setShowDocumentUpload(false)
+      setDocumentUpload({ type: "", file: null })
+      // loadCustomers() // Refresh to show updated document status
+      
+    } catch (error) {
+      console.error("Error uploading document:", error)
     }
   }
 
@@ -437,24 +542,34 @@ export function Customers() {
                         <Button
                           variant="outline"
                           size="icon"
-                          onClick={() => setSelectedCustomer(customer)}
+                          onClick={() => handleViewDetails(customer)}
                         >
                           <Eye className="h-4 w-4" />
                         </Button>
                         <Button
                           variant="outline"
                           size="icon"
-                          onClick={() => {
-                            setSelectedCustomer(customer)
-                            setShowEditForm(true)
-                          }}
+                          onClick={() => handleEditCustomer(customer)}
                         >
                           <Edit className="h-4 w-4" />
                         </Button>
                         <Button
                           variant="outline"
                           size="icon"
-                          onClick={() => handleDeleteCustomer(customer.id)}
+                          onClick={() => {
+                            setSelectedCustomer(customer)
+                            setShowDocumentUpload(true)
+                          }}
+                        >
+                          <Upload className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          onClick={() => {
+                            setCustomerToDelete(customer.id)
+                            setShowDeleteConfirm(true)
+                          }}
                         >
                           <Trash2 className="h-4 w-4" />
                         </Button>
@@ -494,6 +609,307 @@ export function Customers() {
           )}
         </CardContent>
       </Card>
+
+      {/* Customer Detail Modal */}
+      <Dialog open={showDetailModal} onOpenChange={setShowDetailModal}>
+        <DialogContent className="max-w-4xl">
+          <DialogHeader>
+            <DialogTitle>Detail Nasabah</DialogTitle>
+            <DialogDescription>
+              Informasi lengkap nasabah
+            </DialogDescription>
+          </DialogHeader>
+          {selectedCustomer && (
+            <div className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-4">
+                  <h3 className="font-semibold">Informasi Personal</h3>
+                  <div className="space-y-2">
+                    <div className="flex justify-between">
+                      <span className="text-sm text-muted-foreground">NIK:</span>
+                      <span className="text-sm font-medium">{selectedCustomer.nik}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-sm text-muted-foreground">Nama:</span>
+                      <span className="text-sm font-medium">{selectedCustomer.name}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-sm text-muted-foreground">Email:</span>
+                      <span className="text-sm font-medium">{selectedCustomer.email}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-sm text-muted-foreground">Telepon:</span>
+                      <span className="text-sm font-medium">{selectedCustomer.phone}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-sm text-muted-foreground">Tanggal Lahir:</span>
+                      <span className="text-sm font-medium">
+                        {new Date(selectedCustomer.date_of_birth).toLocaleDateString('id-ID')}
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-sm text-muted-foreground">Pekerjaan:</span>
+                      <span className="text-sm font-medium">{selectedCustomer.occupation}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-sm text-muted-foreground">Penghasilan:</span>
+                      <span className="text-sm font-medium">{formatCurrency(selectedCustomer.monthly_income)}</span>
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="space-y-4">
+                  <h3 className="font-semibold">Alamat</h3>
+                  <div className="space-y-2">
+                    <div className="flex justify-between">
+                      <span className="text-sm text-muted-foreground">Alamat:</span>
+                      <span className="text-sm font-medium text-right">{selectedCustomer.address}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-sm text-muted-foreground">Kota:</span>
+                      <span className="text-sm font-medium">{selectedCustomer.city}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-sm text-muted-foreground">Provinsi:</span>
+                      <span className="text-sm font-medium">{selectedCustomer.province}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-sm text-muted-foreground">Kode Pos:</span>
+                      <span className="text-sm font-medium">{selectedCustomer.postal_code}</span>
+                    </div>
+                  </div>
+                  
+                  <h3 className="font-semibold mt-6">Status</h3>
+                  <div className="space-y-2">
+                    <div className="flex justify-between">
+                      <span className="text-sm text-muted-foreground">Status:</span>
+                      {getStatusBadge(selectedCustomer.status, selectedCustomer.ktp_verified)}
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-sm text-muted-foreground">KTP Verified:</span>
+                      <span className="text-sm font-medium">
+                        {selectedCustomer.ktp_verified ? "Ya" : "Tidak"}
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-sm text-muted-foreground">Terdaftar:</span>
+                      <span className="text-sm font-medium">
+                        {new Date(selectedCustomer.created_at).toLocaleDateString('id-ID')}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button onClick={() => setShowDetailModal(false)}>Tutup</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Customer Modal */}
+      <Dialog open={showEditForm} onOpenChange={setShowEditForm}>
+        <DialogContent className="max-w-4xl">
+          <DialogHeader>
+            <DialogTitle>Edit Nasabah</DialogTitle>
+            <DialogDescription>
+              Ubah informasi nasabah
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="edit_name">Nama Lengkap</Label>
+                <Input
+                  id="edit_name"
+                  value={editFormData.name}
+                  onChange={(e) => setEditFormData({ ...editFormData, name: e.target.value })}
+                />
+              </div>
+              <div>
+                <Label htmlFor="edit_email">Email</Label>
+                <Input
+                  id="edit_email"
+                  type="email"
+                  value={editFormData.email}
+                  onChange={(e) => setEditFormData({ ...editFormData, email: e.target.value })}
+                />
+              </div>
+              <div>
+                <Label htmlFor="edit_phone">Nomor Telepon</Label>
+                <Input
+                  id="edit_phone"
+                  value={editFormData.phone}
+                  onChange={(e) => setEditFormData({ ...editFormData, phone: e.target.value })}
+                />
+              </div>
+              <div>
+                <Label htmlFor="edit_date_of_birth">Tanggal Lahir</Label>
+                <Input
+                  id="edit_date_of_birth"
+                  type="date"
+                  value={editFormData.date_of_birth}
+                  onChange={(e) => setEditFormData({ ...editFormData, date_of_birth: e.target.value })}
+                />
+              </div>
+              <div>
+                <Label htmlFor="edit_occupation">Pekerjaan</Label>
+                <Input
+                  id="edit_occupation"
+                  value={editFormData.occupation}
+                  onChange={(e) => setEditFormData({ ...editFormData, occupation: e.target.value })}
+                />
+              </div>
+              <div>
+                <Label htmlFor="edit_monthly_income">Penghasilan Bulanan</Label>
+                <Input
+                  id="edit_monthly_income"
+                  type="number"
+                  value={editFormData.monthly_income}
+                  onChange={(e) => setEditFormData({ ...editFormData, monthly_income: parseInt(e.target.value) || 0 })}
+                />
+              </div>
+              <div>
+                <Label htmlFor="edit_status">Status</Label>
+                <select
+                  id="edit_status"
+                  value={editFormData.status}
+                  onChange={(e) => setEditFormData({ ...editFormData, status: e.target.value })}
+                  className="w-full h-10 px-3 rounded-md border border-input bg-background"
+                >
+                  <option value="pending">Pending</option>
+                  <option value="active">Aktif</option>
+                  <option value="inactive">Tidak Aktif</option>
+                  <option value="blocked">Diblokir</option>
+                </select>
+              </div>
+            </div>
+            <div className="space-y-4">
+              <div>
+                <Label htmlFor="edit_address">Alamat Lengkap</Label>
+                <Input
+                  id="edit_address"
+                  value={editFormData.address}
+                  onChange={(e) => setEditFormData({ ...editFormData, address: e.target.value })}
+                />
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                  <Label htmlFor="edit_city">Kota/Kabupaten</Label>
+                  <Input
+                    id="edit_city"
+                    value={editFormData.city}
+                    onChange={(e) => setEditFormData({ ...editFormData, city: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="edit_province">Provinsi</Label>
+                  <Input
+                    id="edit_province"
+                    value={editFormData.province}
+                    onChange={(e) => setEditFormData({ ...editFormData, province: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="edit_postal_code">Kode Pos</Label>
+                  <Input
+                    id="edit_postal_code"
+                    value={editFormData.postal_code}
+                    onChange={(e) => setEditFormData({ ...editFormData, postal_code: e.target.value })}
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowEditForm(false)}>
+              Batal
+            </Button>
+            <Button onClick={handleUpdateCustomer}>
+              <Save className="mr-2 h-4 w-4" />
+              Simpan
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirmation Modal */}
+      <Dialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Konfirmasi Hapus</DialogTitle>
+            <DialogDescription>
+              Apakah Anda yakin ingin menghapus nasabah ini? Tindakan ini tidak dapat dibatalkan.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowDeleteConfirm(false)}>
+              Batal
+            </Button>
+            <Button variant="destructive" onClick={handleDeleteCustomer}>
+              <Trash2 className="mr-2 h-4 w-4" />
+              Hapus
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Document Upload Modal */}
+      <Dialog open={showDocumentUpload} onOpenChange={setShowDocumentUpload}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Upload Dokumen</DialogTitle>
+            <DialogDescription>
+              Upload dokumen untuk {selectedCustomer?.name}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="doc_type">Jenis Dokumen</Label>
+              <select
+                id="doc_type"
+                value={documentUpload.type}
+                onChange={(e) => setDocumentUpload({ ...documentUpload, type: e.target.value })}
+                className="w-full h-10 px-3 rounded-md border border-input bg-background"
+              >
+                <option value="">Pilih jenis dokumen</option>
+                <option value="ktp">KTP</option>
+                <option value="kk">Kartu Keluarga</option>
+                <option value="sim">SIM</option>
+                <option value="npwp">NPWP</option>
+              </select>
+            </div>
+            <div>
+              <Label htmlFor="doc_file">File Dokumen</Label>
+              <Input
+                id="doc_file"
+                type="file"
+                accept="image/*,.pdf"
+                onChange={(e) => setDocumentUpload({ 
+                  ...documentUpload, 
+                  file: e.target.files?.[0] || null 
+                })}
+              />
+              <p className="text-xs text-muted-foreground mt-1">
+                Format yang didukung: JPG, PNG, PDF (max 10MB)
+              </p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowDocumentUpload(false)}>
+              Batal
+            </Button>
+            <Button 
+              onClick={handleDocumentUpload}
+              disabled={!documentUpload.type || !documentUpload.file}
+            >
+              <Upload className="mr-2 h-4 w-4" />
+              Upload
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

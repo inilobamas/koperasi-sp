@@ -81,7 +81,13 @@ func (s *DocumentService) UploadDocument(req DocumentUploadRequest, fileContent 
 	}
 
 	// Validate document type
-	if req.Type != string(models.DocumentTypeKTP) {
+	validTypes := map[string]bool{
+		string(models.DocumentTypeKTP):  true,
+		string(models.DocumentTypeKK):   true,
+		string(models.DocumentTypeSIM):  true,
+		string(models.DocumentTypeNPWP): true,
+	}
+	if !validTypes[req.Type] {
 		return nil, fmt.Errorf("invalid document type")
 	}
 

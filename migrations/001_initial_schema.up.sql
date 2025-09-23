@@ -52,7 +52,7 @@ CREATE TABLE customers (
 CREATE TABLE documents (
     id TEXT PRIMARY KEY,
     customer_id TEXT NOT NULL,
-    type TEXT NOT NULL CHECK (type IN ('ktp')),
+    type TEXT NOT NULL CHECK (type IN ('ktp', 'kk', 'sim', 'npwp')),
     filename TEXT NOT NULL,
     original_name TEXT NOT NULL,
     path TEXT NOT NULL,

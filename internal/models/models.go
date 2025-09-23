@@ -92,7 +92,10 @@ type Document struct {
 type DocumentType string
 
 const (
-	DocumentTypeKTP DocumentType = "ktp"
+	DocumentTypeKTP  DocumentType = "ktp"
+	DocumentTypeKK   DocumentType = "kk"
+	DocumentTypeSIM  DocumentType = "sim"
+	DocumentTypeNPWP DocumentType = "npwp"
 )
 
 type DocumentStatus string
