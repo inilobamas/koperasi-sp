@@ -79,3 +79,23 @@ export function UpdateReferralCode(arg1:string,arg2:services.ReferralCodeUpdateR
 export function ValidateReferralCode(arg1:string):Promise<services.APIResponse>;
 
 export function VerifyDocument(arg1:services.DocumentVerifyRequest):Promise<services.APIResponse>;
+
+export function Login(arg1:services.LoginRequest):Promise<services.APIResponse>;
+
+export function Logout(arg1:string):Promise<services.APIResponse>;
+
+export function ValidateSession(arg1:string):Promise<services.APIResponse>;
+
+export function CreateUser(arg1:services.UserCreateRequest):Promise<services.APIResponse>;
+
+export function GetUser(arg1:string):Promise<services.APIResponse>;
+
+export function UpdateUser(arg1:string,arg2:services.UserUpdateRequest):Promise<services.APIResponse>;
+
+export function ListUsers(arg1:services.UserListRequest):Promise<services.APIResponse>;
+
+export function ChangePassword(arg1:services.ChangePasswordRequest):Promise<services.APIResponse>;
+
+export function DeleteUser(arg1:string):Promise<services.APIResponse>;
+
+export function UploadDocument(arg1:string,arg2:string,arg3:string,arg4:Array<number>):Promise<services.APIResponse>;

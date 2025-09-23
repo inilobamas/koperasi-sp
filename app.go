@@ -5,6 +5,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"mime/multipart"
+	"os"
+	"path/filepath"
+	"strings"
 	"time"
 
 	"koperasi-app/internal/config"
@@ -24,6 +28,7 @@ type App struct {
 	loanService         *services.LoanService
 	notificationService *services.NotificationService
 	auditService        *services.AuditService
+	userService         *services.UserService
 	scheduler           *scheduler.Scheduler
 }
 
@@ -63,6 +68,7 @@ func (a *App) startup(ctx context.Context) {
 	a.loanService = services.NewLoanService(db)
 	a.notificationService = services.NewNotificationService(db, cfg)
 	a.auditService = services.NewAuditService(db)
+	a.userService = services.NewUserService(db)
 
 	// Initialize scheduler
 	a.scheduler = scheduler.NewScheduler(db, cfg, a.notificationService, a.loanService)
@@ -265,6 +271,74 @@ func (a *App) GetReferralPerformance(ownerUserID string) (*services.APIResponse,
 }
 
 // Document Management APIs
+func (a *App) UploadDocument(customerID, docType, filename string, fileData []byte) (*services.APIResponse, error) {
+	// Create a temporary file from the byte data
+	tempFile, err := os.CreateTemp("", "upload_*")
+	if err != nil {
+		return &services.APIResponse{
+			Success: false,
+			Message: "Failed to create temporary file",
+		}, nil
+	}
+	defer os.Remove(tempFile.Name())
+	defer tempFile.Close()
+
+	// Write the file data
+	if _, err := tempFile.Write(fileData); err != nil {
+		return &services.APIResponse{
+			Success: false,
+			Message: "Failed to write file data",
+		}, nil
+	}
+
+	// Reset file pointer
+	tempFile.Seek(0, 0)
+
+	// Create multipart file header for the service
+	fileHeader := &multipart.FileHeader{
+		Filename: filename,
+		Size:     int64(len(fileData)),
+		Header:   make(map[string][]string),
+	}
+
+	// Detect content type based on file extension
+	ext := filepath.Ext(filename)
+	var contentType string
+	switch strings.ToLower(ext) {
+	case ".jpg", ".jpeg":
+		contentType = "image/jpeg"
+	case ".png":
+		contentType = "image/png"
+	case ".pdf":
+		contentType = "application/pdf"
+	default:
+		contentType = "application/octet-stream"
+	}
+	fileHeader.Header["Content-Type"] = []string{contentType}
+
+	// Create upload request
+	uploadReq := services.DocumentUploadRequest{
+		CustomerID: customerID,
+		Type:       docType,
+		File:       fileHeader,
+	}
+
+	// Upload document
+	document, err := a.documentService.UploadDocument(uploadReq, tempFile)
+	if err != nil {
+		return &services.APIResponse{
+			Success: false,
+			Message: err.Error(),
+		}, nil
+	}
+
+	return &services.APIResponse{
+		Success: true,
+		Message: "Document uploaded successfully",
+		Data:    document,
+	}, nil
+}
+
 func (a *App) ListDocuments(req services.DocumentListRequest) (*services.APIResponse, error) {
 	response, err := a.documentService.ListDocuments(req)
 	if err != nil {
@@ -668,5 +742,145 @@ func (a *App) GetAuditSummary(entityID string) (*services.APIResponse, error) {
 	return &services.APIResponse{
 		Success: true,
 		Data:    summary,
+	}, nil
+}
+
+// User Authentication APIs
+func (a *App) Login(req services.LoginRequest) (*services.APIResponse, error) {
+	response, err := a.userService.Login(req)
+	if err != nil {
+		return &services.APIResponse{
+			Success: false,
+			Message: err.Error(),
+		}, nil
+	}
+
+	return &services.APIResponse{
+		Success: true,
+		Message: "Login successful",
+		Data:    response,
+	}, nil
+}
+
+func (a *App) Logout(token string) (*services.APIResponse, error) {
+	err := a.userService.Logout(token)
+	if err != nil {
+		return &services.APIResponse{
+			Success: false,
+			Message: err.Error(),
+		}, nil
+	}
+
+	return &services.APIResponse{
+		Success: true,
+		Message: "Logout successful",
+	}, nil
+}
+
+func (a *App) ValidateSession(token string) (*services.APIResponse, error) {
+	user, err := a.userService.ValidateSession(token)
+	if err != nil {
+		return &services.APIResponse{
+			Success: false,
+			Message: err.Error(),
+		}, nil
+	}
+
+	return &services.APIResponse{
+		Success: true,
+		Data:    user,
+	}, nil
+}
+
+// User Management APIs
+func (a *App) CreateUser(req services.UserCreateRequest) (*services.APIResponse, error) {
+	user, err := a.userService.CreateUser(req)
+	if err != nil {
+		return &services.APIResponse{
+			Success: false,
+			Message: err.Error(),
+		}, nil
+	}
+
+	return &services.APIResponse{
+		Success: true,
+		Message: "User created successfully",
+		Data:    user,
+	}, nil
+}
+
+func (a *App) GetUser(id string) (*services.APIResponse, error) {
+	user, err := a.userService.GetUser(id)
+	if err != nil {
+		return &services.APIResponse{
+			Success: false,
+			Message: err.Error(),
+		}, nil
+	}
+
+	return &services.APIResponse{
+		Success: true,
+		Data:    user,
+	}, nil
+}
+
+func (a *App) UpdateUser(id string, req services.UserUpdateRequest) (*services.APIResponse, error) {
+	user, err := a.userService.UpdateUser(id, req)
+	if err != nil {
+		return &services.APIResponse{
+			Success: false,
+			Message: err.Error(),
+		}, nil
+	}
+
+	return &services.APIResponse{
+		Success: true,
+		Message: "User updated successfully",
+		Data:    user,
+	}, nil
+}
+
+func (a *App) ListUsers(req services.UserListRequest) (*services.APIResponse, error) {
+	response, err := a.userService.ListUsers(req)
+	if err != nil {
+		return &services.APIResponse{
+			Success: false,
+			Message: err.Error(),
+		}, nil
+	}
+
+	return &services.APIResponse{
+		Success: true,
+		Data:    response,
+	}, nil
+}
+
+func (a *App) ChangePassword(req services.ChangePasswordRequest) (*services.APIResponse, error) {
+	err := a.userService.ChangePassword(req)
+	if err != nil {
+		return &services.APIResponse{
+			Success: false,
+			Message: err.Error(),
+		}, nil
+	}
+
+	return &services.APIResponse{
+		Success: true,
+		Message: "Password changed successfully",
+	}, nil
+}
+
+func (a *App) DeleteUser(id string) (*services.APIResponse, error) {
+	err := a.userService.DeleteUser(id)
+	if err != nil {
+		return &services.APIResponse{
+			Success: false,
+			Message: err.Error(),
+		}, nil
+	}
+
+	return &services.APIResponse{
+		Success: true,
+		Message: "User deleted successfully",
 	}, nil
 }

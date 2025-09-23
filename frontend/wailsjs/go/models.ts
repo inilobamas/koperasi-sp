@@ -464,6 +464,88 @@ export namespace services {
 		    return a;
 		}
 	}
+	export class LoginRequest {
+	    email: string;
+	    password: string;
+
+	    static createFrom(source: any = {}) {
+	        return new LoginRequest(source);
+	    }
+
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.email = source["email"];
+	        this.password = source["password"];
+	    }
+	}
+	export class UserCreateRequest {
+	    name: string;
+	    email: string;
+	    password: string;
+	    role: string;
+
+	    static createFrom(source: any = {}) {
+	        return new UserCreateRequest(source);
+	    }
+
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.name = source["name"];
+	        this.email = source["email"];
+	        this.password = source["password"];
+	        this.role = source["role"];
+	    }
+	}
+	export class UserUpdateRequest {
+	    name: string;
+	    email: string;
+	    role: string;
+
+	    static createFrom(source: any = {}) {
+	        return new UserUpdateRequest(source);
+	    }
+
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.name = source["name"];
+	        this.email = source["email"];
+	        this.role = source["role"];
+	    }
+	}
+	export class UserListRequest {
+	    page: number;
+	    limit: number;
+	    search: string;
+	    role: string;
+
+	    static createFrom(source: any = {}) {
+	        return new UserListRequest(source);
+	    }
+
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.page = source["page"];
+	        this.limit = source["limit"];
+	        this.search = source["search"];
+	        this.role = source["role"];
+	    }
+	}
+	export class ChangePasswordRequest {
+	    user_id: string;
+	    current_password: string;
+	    new_password: string;
+
+	    static createFrom(source: any = {}) {
+	        return new ChangePasswordRequest(source);
+	    }
+
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.user_id = source["user_id"];
+	        this.current_password = source["current_password"];
+	        this.new_password = source["new_password"];
+	    }
+	}
 
 }
 

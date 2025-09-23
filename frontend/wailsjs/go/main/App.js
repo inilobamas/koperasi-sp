@@ -157,3 +157,43 @@ export function ValidateReferralCode(arg1) {
 export function VerifyDocument(arg1) {
   return window['go']['main']['App']['VerifyDocument'](arg1);
 }
+
+export function Login(arg1) {
+  return window['go']['main']['App']['Login'](arg1);
+}
+
+export function Logout(arg1) {
+  return window['go']['main']['App']['Logout'](arg1);
+}
+
+export function ValidateSession(arg1) {
+  return window['go']['main']['App']['ValidateSession'](arg1);
+}
+
+export function CreateUser(arg1) {
+  return window['go']['main']['App']['CreateUser'](arg1);
+}
+
+export function GetUser(arg1) {
+  return window['go']['main']['App']['GetUser'](arg1);
+}
+
+export function UpdateUser(arg1, arg2) {
+  return window['go']['main']['App']['UpdateUser'](arg1, arg2);
+}
+
+export function ListUsers(arg1) {
+  return window['go']['main']['App']['ListUsers'](arg1);
+}
+
+export function ChangePassword(arg1) {
+  return window['go']['main']['App']['ChangePassword'](arg1);
+}
+
+export function DeleteUser(arg1) {
+  return window['go']['main']['App']['DeleteUser'](arg1);
+}
+
+export function UploadDocument(arg1, arg2, arg3, arg4) {
+  return window['go']['main']['App']['UploadDocument'](arg1, arg2, arg3, arg4);
+}

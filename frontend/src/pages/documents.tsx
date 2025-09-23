@@ -13,6 +13,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
+import { useToast, ToastContainer } from "@/components/ui/toast"
 import {
   Search,
   Filter,
@@ -61,6 +62,7 @@ interface DocumentListResponse {
 }
 
 export function Documents() {
+  const { toasts, removeToast, showSuccess, showError } = useToast()
   const [documents, setDocuments] = useState<Document[]>([])
   const [total, setTotal] = useState(0)
   const [page, setPage] = useState(1)
@@ -128,13 +130,20 @@ export function Documents() {
       
       const response = await VerifyDocument(request)
       if (response.success) {
+        showSuccess(
+          "Dokumen Berhasil Diverifikasi!", 
+          `Dokumen ${selectedDocument.customer?.name} telah ${verifyData.status === 'verified' ? 'disetujui' : 'ditolak'}.`
+        )
         setShowVerifyModal(false)
         setVerifyData({ status: "", notes: "", verifier_id: "admin-user-id" })
         setSelectedDocument(null)
         loadDocuments()
+      } else {
+        showError("Error Verifikasi", response.message)
       }
     } catch (error) {
       console.error("Error verifying document:", error)
+      showError("Error", "Terjadi kesalahan saat memverifikasi dokumen.")
     }
   }
 
@@ -144,12 +153,16 @@ export function Documents() {
     try {
       const response = await DeleteDocument(documentToDelete)
       if (response.success) {
+        showSuccess("Dokumen Dihapus", "Dokumen berhasil dihapus dari sistem.")
         setShowDeleteConfirm(false)
         setDocumentToDelete(null)
         loadDocuments()
+      } else {
+        showError("Error Hapus", response.message)
       }
     } catch (error) {
       console.error("Error deleting document:", error)
+      showError("Error", "Terjadi kesalahan saat menghapus dokumen.")
     }
   }
 
@@ -727,6 +740,9 @@ export function Documents() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Toast Notifications */}
+      <ToastContainer toasts={toasts} onRemove={removeToast} />
     </div>
   )
 }

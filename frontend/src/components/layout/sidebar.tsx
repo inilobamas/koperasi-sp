@@ -11,10 +11,13 @@ import {
   Menu,
   X,
   Building2,
+  LogOut,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { ModeToggle } from "@/components/mode-toggle"
+import { useAuth } from "@/contexts/AuthContext"
+import { Logout } from "../../../wailsjs/go/main/App"
 
 const navigation = [
   { name: "Dashboard", href: "/", icon: BarChart3 },
@@ -32,6 +35,19 @@ interface SidebarProps {
 
 export function Sidebar({ className }: SidebarProps) {
   const [collapsed, setCollapsed] = useState(false)
+  const { user, logout, token } = useAuth()
+
+  const handleLogout = async () => {
+    try {
+      if (token) {
+        await Logout(token)
+      }
+    } catch (error) {
+      console.error('Logout error:', error)
+    } finally {
+      logout()
+    }
+  }
 
   return (
     <div
@@ -82,15 +98,33 @@ export function Sidebar({ className }: SidebarProps) {
         ))}
       </nav>
 
-      {/* Footer */}
-      <div className="p-4 border-t">
-        <div className={cn("flex items-center", collapsed ? "justify-center" : "justify-between")}>
+      {/* User Info & Footer */}
+      <div className="p-4 border-t space-y-2">
+        {!collapsed && user && (
+          <div className="text-xs text-muted-foreground space-y-1">
+            <div className="font-medium">{user.name}</div>
+            <div className="capitalize">{user.role}</div>
+          </div>
+        )}
+        
+        <div className={cn("flex items-center gap-2", collapsed ? "justify-center" : "justify-between")}>
           {!collapsed && (
             <div className="text-xs text-muted-foreground">
               v1.0.0
             </div>
           )}
-          <ModeToggle />
+          <div className="flex items-center gap-1">
+            <ModeToggle />
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={handleLogout}
+              title="Logout"
+              className="h-8 w-8"
+            >
+              <LogOut className="h-4 w-4" />
+            </Button>
+          </div>
         </div>
       </div>
     </div>

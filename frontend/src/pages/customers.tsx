@@ -14,6 +14,7 @@ import {
   DialogTitle,
   DialogClose,
 } from "@/components/ui/dialog"
+import { useToast, ToastContainer } from "@/components/ui/toast"
 import {
   Plus,
   Search,
@@ -32,7 +33,7 @@ import {
   Save,
 } from "lucide-react"
 import { formatCurrency } from "@/lib/utils"
-import { CreateCustomer, ListCustomers, GetCustomer, UpdateCustomer, DeleteCustomer } from "../../wailsjs/go/main/App"
+import { CreateCustomer, ListCustomers, GetCustomer, UpdateCustomer, DeleteCustomer, UploadDocument, ListDocuments } from "../../wailsjs/go/main/App"
 import { services } from "../../wailsjs/go/models"
 
 interface Customer {
@@ -53,6 +54,15 @@ interface Customer {
   referral_code_id?: string
   created_at: string
   updated_at: string
+  documents?: CustomerDocument[]
+}
+
+interface CustomerDocument {
+  id: string
+  type: 'ktp' | 'kk' | 'sim' | 'npwp'
+  status: 'pending' | 'verified' | 'rejected'
+  original_name: string
+  created_at: string
 }
 
 interface CustomerListResponse {
@@ -63,6 +73,7 @@ interface CustomerListResponse {
 }
 
 export function Customers() {
+  const { toasts, removeToast, showSuccess, showError } = useToast()
   const [customers, setCustomers] = useState<Customer[]>([])
   const [total, setTotal] = useState(0)
   const [page, setPage] = useState(1)
@@ -128,7 +139,29 @@ export function Customers() {
       const response = await ListCustomers(request)
       if (response.success) {
         const data = response.data as CustomerListResponse
-        setCustomers(data.customers || [])
+        const customersWithDocs = await Promise.all(
+          (data.customers || []).map(async (customer) => {
+            try {
+              // Load documents for each customer
+              const docRequest = new services.DocumentListRequest({
+                page: 1,
+                limit: 10,
+                customer_id: customer.id,
+                type: "",
+                status: "",
+              })
+              const docResponse = await ListDocuments(docRequest)
+              if (docResponse.success) {
+                customer.documents = docResponse.data.documents || []
+              }
+            } catch (error) {
+              console.error(`Error loading documents for customer ${customer.id}:`, error)
+              customer.documents = []
+            }
+            return customer
+          })
+        )
+        setCustomers(customersWithDocs)
         setTotal(data.total || 0)
       }
     } catch (error) {
@@ -235,22 +268,36 @@ export function Customers() {
     if (!selectedCustomer || !documentUpload.file || !documentUpload.type) return
     
     try {
-      // Create FormData for file upload
-      const formData = new FormData()
-      formData.append('file', documentUpload.file)
-      formData.append('customer_id', selectedCustomer.id)
-      formData.append('type', documentUpload.type)
+      // Convert file to byte array
+      const fileBuffer = await documentUpload.file.arrayBuffer()
+      const fileData = new Uint8Array(fileBuffer)
       
-      // Note: This would need to be implemented in the backend
-      // For now, just show success
-      console.log("Uploading document:", formData)
+      // Call the upload API
+      const response = await UploadDocument(
+        selectedCustomer.id,
+        documentUpload.type,
+        documentUpload.file.name,
+        Array.from(fileData)
+      )
       
-      setShowDocumentUpload(false)
-      setDocumentUpload({ type: "", file: null })
-      // loadCustomers() // Refresh to show updated document status
+      if (response.success) {
+        // Show success message
+        showSuccess(
+          "Dokumen Berhasil Diupload!", 
+          "Admin akan memverifikasi dokumen Anda segera."
+        )
+        
+        setShowDocumentUpload(false)
+        setDocumentUpload({ type: "", file: null })
+        loadCustomers() // Refresh to show updated document status
+      } else {
+        // Show error message
+        showError("Upload Gagal", response.message)
+      }
       
     } catch (error) {
       console.error("Error uploading document:", error)
+      showError("Error Upload", "Terjadi kesalahan saat upload dokumen. Silakan coba lagi.")
     }
   }
 
@@ -266,6 +313,54 @@ export function Customers() {
     } else {
       return <Badge variant="secondary">Tidak Aktif</Badge>
     }
+  }
+
+  const getDocumentStatusSummary = (documents: CustomerDocument[] = []) => {
+    const docTypes = ['ktp', 'kk', 'sim', 'npwp']
+    const summary = docTypes.map(type => {
+      const doc = documents.find(d => d.type === type)
+      return {
+        type,
+        status: doc ? doc.status : 'missing',
+        hasDoc: !!doc
+      }
+    })
+    
+    const verified = summary.filter(s => s.status === 'verified').length
+    const pending = summary.filter(s => s.status === 'pending').length
+    const rejected = summary.filter(s => s.status === 'rejected').length
+    const missing = summary.filter(s => s.status === 'missing').length
+    
+    return { verified, pending, rejected, missing, total: summary.length }
+  }
+
+  const getDocumentStatusDisplay = (documents: CustomerDocument[] = []) => {
+    const summary = getDocumentStatusSummary(documents)
+    
+    return (
+      <div className="flex items-center space-x-1 text-xs">
+        {summary.verified > 0 && (
+          <Badge variant="default" className="bg-green-100 text-green-800 text-xs px-1 py-0">
+            ✓ {summary.verified}
+          </Badge>
+        )}
+        {summary.pending > 0 && (
+          <Badge variant="secondary" className="text-xs px-1 py-0">
+            ⏳ {summary.pending}
+          </Badge>
+        )}
+        {summary.rejected > 0 && (
+          <Badge variant="destructive" className="text-xs px-1 py-0">
+            ✗ {summary.rejected}
+          </Badge>
+        )}
+        {summary.missing > 0 && (
+          <Badge variant="outline" className="text-xs px-1 py-0">
+            - {summary.missing}
+          </Badge>
+        )}
+      </div>
+    )
   }
 
   return (
@@ -528,6 +623,10 @@ export function Customers() {
                           <p className="text-sm text-muted-foreground">
                             {customer.occupation} • {formatCurrency(customer.monthly_income)}/bulan
                           </p>
+                          <div className="flex items-center space-x-2 mt-1">
+                            <span className="text-xs text-muted-foreground">Dokumen:</span>
+                            {getDocumentStatusDisplay(customer.documents)}
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -698,11 +797,59 @@ export function Customers() {
                       </span>
                     </div>
                   </div>
+                  
+                  <h3 className="font-semibold mt-6">Dokumen</h3>
+                  <div className="space-y-2">
+                    {['ktp', 'kk', 'sim', 'npwp'].map((docType) => {
+                      const doc = selectedCustomer.documents?.find(d => d.type === docType)
+                      const label = docType === 'ktp' ? 'KTP' : docType === 'kk' ? 'KK' : docType === 'sim' ? 'SIM' : 'NPWP'
+                      return (
+                        <div key={docType} className="flex justify-between items-center">
+                          <span className="text-sm text-muted-foreground">{label}:</span>
+                          <div className="flex items-center space-x-2">
+                            {doc ? (
+                              <>
+                                <span className="text-sm font-medium">{doc.original_name}</span>
+                                {doc.status === 'verified' && (
+                                  <Badge variant="default" className="bg-green-100 text-green-800 text-xs">
+                                    Verified
+                                  </Badge>
+                                )}
+                                {doc.status === 'pending' && (
+                                  <Badge variant="secondary" className="text-xs">
+                                    Pending
+                                  </Badge>
+                                )}
+                                {doc.status === 'rejected' && (
+                                  <Badge variant="destructive" className="text-xs">
+                                    Rejected
+                                  </Badge>
+                                )}
+                              </>
+                            ) : (
+                              <Badge variant="outline" className="text-xs">
+                                Belum Upload
+                              </Badge>
+                            )}
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
                 </div>
               </div>
             </div>
           )}
           <DialogFooter>
+            <Button 
+              variant="outline"
+              onClick={() => {
+                setShowDetailModal(false)
+                setShowDocumentUpload(true)
+              }}
+            >
+              Upload Dokumen
+            </Button>
             <Button onClick={() => setShowDetailModal(false)}>Tutup</Button>
           </DialogFooter>
         </DialogContent>
@@ -910,6 +1057,9 @@ export function Customers() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Toast Notifications */}
+      <ToastContainer toasts={toasts} onRemove={removeToast} />
     </div>
   )
 }
