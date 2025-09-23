@@ -249,6 +249,21 @@ func (a *App) ValidateReferralCode(code string) (*services.APIResponse, error) {
 	}, nil
 }
 
+func (a *App) GetReferralPerformance(ownerUserID string) (*services.APIResponse, error) {
+	performance, err := a.referralService.GetReferralPerformance(ownerUserID)
+	if err != nil {
+		return &services.APIResponse{
+			Success: false,
+			Message: err.Error(),
+		}, nil
+	}
+
+	return &services.APIResponse{
+		Success: true,
+		Data:    performance,
+	}, nil
+}
+
 // Document Management APIs
 func (a *App) ListDocuments(req services.DocumentListRequest) (*services.APIResponse, error) {
 	response, err := a.documentService.ListDocuments(req)

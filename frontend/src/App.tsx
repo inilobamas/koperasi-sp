@@ -2,6 +2,8 @@ import { BrowserRouter, Routes, Route } from "react-router-dom"
 import { ThemeProvider } from "@/components/theme-provider"
 import { Layout } from "@/components/layout/layout"
 import { Dashboard } from "@/pages/dashboard"
+import { Customers } from "@/pages/customers"
+import { Referrals } from "@/pages/referrals"
 
 function App() {
   return (
@@ -12,10 +14,10 @@ function App() {
             <Route index element={<Dashboard />} />
           </Route>
           <Route path="/customers" element={<Layout title="Nasabah" description="Kelola data nasabah" />}>
-            <Route index element={<div>Customer Management - Coming Soon</div>} />
+            <Route index element={<Customers />} />
           </Route>
           <Route path="/referrals" element={<Layout title="Referral" description="Kelola kode referral" />}>
-            <Route index element={<div>Referral Management - Coming Soon</div>} />
+            <Route index element={<Referrals />} />
           </Route>
           <Route path="/documents" element={<Layout title="Dokumen" description="Verifikasi dokumen KTP" />}>
             <Route index element={<div>Document Management - Coming Soon</div>} />
