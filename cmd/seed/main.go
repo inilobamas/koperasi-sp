@@ -25,20 +25,62 @@ func main() {
 
 	userService := services.NewUserService(db)
 
-	createReq := services.UserCreateRequest{
+	// Create superadmin user
+	superAdminReq := services.UserCreateRequest{
 		Name:     "Super Admin",
-		Email:    "admin@koperasi.com",
-		Password: "admin123",
+		Email:    "superadmin@koperasi.com",
+		Password: "superadmin123",
 		Role:     "superadmin",
 	}
 
-	user, err := userService.CreateUser(createReq)
+	superAdmin, err := userService.CreateUser(superAdminReq)
 	if err != nil {
-		log.Fatalf("Failed to create admin user: %v", err)
+		log.Printf("Superadmin user creation failed: %v", err)
+	} else {
+		log.Printf("Superadmin user created successfully!")
+		log.Printf("Email: %s", superAdmin.Email)
+		log.Printf("Password: superadmin123")
+		log.Printf("Role: %s", superAdmin.Role)
 	}
 
-	log.Printf("Default admin user created successfully!")
-	log.Printf("Email: %s", user.Email)
-	log.Printf("Password: admin123")
-	log.Printf("Role: %s", user.Role)
+	// Create admin user
+	adminReq := services.UserCreateRequest{
+		Name:     "Admin",
+		Email:    "admin@koperasi.com",
+		Password: "admin123",
+		Role:     "admin",
+	}
+
+	admin, err := userService.CreateUser(adminReq)
+	if err != nil {
+		log.Printf("Admin user creation failed: %v", err)
+	} else {
+		log.Printf("Admin user created successfully!")
+		log.Printf("Email: %s", admin.Email)
+		log.Printf("Password: admin123")
+		log.Printf("Role: %s", admin.Role)
+	}
+
+	// Create karyawan user
+	karyawanReq := services.UserCreateRequest{
+		Name:     "Karyawan",
+		Email:    "karyawan@koperasi.com",
+		Password: "karyawan123",
+		Role:     "karyawan",
+	}
+
+	karyawan, err := userService.CreateUser(karyawanReq)
+	if err != nil {
+		log.Printf("Karyawan user creation failed: %v", err)
+	} else {
+		log.Printf("Karyawan user created successfully!")
+		log.Printf("Email: %s", karyawan.Email)
+		log.Printf("Password: karyawan123")
+		log.Printf("Role: %s", karyawan.Role)
+	}
+
+	log.Println("\n=== USER CREDENTIALS ===")
+	log.Println("Superadmin - Email: superadmin@koperasi.com, Password: superadmin123")
+	log.Println("Admin - Email: admin@koperasi.com, Password: admin123")
+	log.Println("Karyawan - Email: karyawan@koperasi.com, Password: karyawan123")
 }
