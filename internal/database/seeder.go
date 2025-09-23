@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"golang.org/x/crypto/bcrypt"
 	"koperasi-app/internal/models"
 	"koperasi-app/internal/utils"
 )
@@ -60,45 +61,71 @@ func (s *Seeder) SeedAll() error {
 }
 
 func (s *Seeder) seedUsers() error {
-	users := []models.User{
+	type UserSeed struct {
+		models.User
+		Password string
+	}
+
+	users := []UserSeed{
 		{
-			ID:    uuid.New(),
-			Email: "superadmin@koperasi.com",
-			Name:  "Super Administrator",
-			Role:  models.RoleSuperadmin,
-			Active: true,
+			User: models.User{
+				ID:     uuid.New(),
+				Email:  "superadmin@koperasi.com",
+				Name:   "Super Administrator",
+				Role:   models.RoleSuperadmin,
+				Active: true,
+			},
+			Password: "superadmin123",
 		},
 		{
-			ID:    uuid.New(),
-			Email: "admin@koperasi.com",
-			Name:  "Administrator",
-			Role:  models.RoleAdmin,
-			Active: true,
+			User: models.User{
+				ID:     uuid.New(),
+				Email:  "admin@koperasi.com",
+				Name:   "Administrator",
+				Role:   models.RoleAdmin,
+				Active: true,
+			},
+			Password: "admin123",
 		},
 	}
 
 	// Add 8 more employees
 	for i := 1; i <= 8; i++ {
-		users = append(users, models.User{
-			ID:    uuid.New(),
-			Email: fmt.Sprintf("karyawan%d@koperasi.com", i),
-			Name:  fmt.Sprintf("Karyawan %d", i),
-			Role:  models.RoleKaryawan,
-			Active: true,
+		users = append(users, UserSeed{
+			User: models.User{
+				ID:     uuid.New(),
+				Email:  fmt.Sprintf("karyawan%d@koperasi.com", i),
+				Name:   fmt.Sprintf("Karyawan %d", i),
+				Role:   models.RoleKaryawan,
+				Active: true,
+			},
+			Password: "karyawan123",
 		})
 	}
 
-	for _, user := range users {
-		_, err := s.db.Exec(`
-			INSERT INTO users (id, email, name, role, active)
-			VALUES (?, ?, ?, ?, ?)`,
-			user.ID.String(), user.Email, user.Name, string(user.Role), user.Active)
+	for _, userSeed := range users {
+		// Hash the password
+		hashedPassword, err := bcrypt.GenerateFromPassword([]byte(userSeed.Password), bcrypt.DefaultCost)
+		if err != nil {
+			return fmt.Errorf("failed to hash password for %s: %v", userSeed.Email, err)
+		}
+
+		_, err = s.db.Exec(`
+			INSERT INTO users (id, email, name, role, active, password_hash)
+			VALUES (?, ?, ?, ?, ?, ?)`,
+			userSeed.ID.String(), userSeed.Email, userSeed.Name, string(userSeed.Role), userSeed.Active, string(hashedPassword))
 		if err != nil {
 			return err
 		}
+
+		log.Printf("Created user: %s (%s) with password: %s", userSeed.Email, userSeed.Role, userSeed.Password)
 	}
 
-	log.Printf("Seeded %d users", len(users))
+	log.Printf("Seeded %d users with password hashes", len(users))
+	log.Println("\n=== USER CREDENTIALS ===")
+	log.Println("Superadmin - Email: superadmin@koperasi.com, Password: superadmin123")
+	log.Println("Admin - Email: admin@koperasi.com, Password: admin123")
+	log.Println("Karyawan (all) - Password: karyawan123")
 	return nil
 }
 
