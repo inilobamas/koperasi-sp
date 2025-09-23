@@ -4,6 +4,8 @@ import { Layout } from "@/components/layout/layout"
 import { Dashboard } from "@/pages/dashboard"
 import { Customers } from "@/pages/customers"
 import { Referrals } from "@/pages/referrals"
+import { Documents } from "@/pages/documents"
+import { Loans } from "@/pages/loans"
 
 function App() {
   return (
@@ -20,10 +22,10 @@ function App() {
             <Route index element={<Referrals />} />
           </Route>
           <Route path="/documents" element={<Layout title="Dokumen" description="Verifikasi dokumen KTP" />}>
-            <Route index element={<div>Document Management - Coming Soon</div>} />
+            <Route index element={<Documents />} />
           </Route>
           <Route path="/loans" element={<Layout title="Pinjaman" description="Kelola pinjaman dan angsuran" />}>
-            <Route index element={<div>Loan Management - Coming Soon</div>} />
+            <Route index element={<Loans />} />
           </Route>
           <Route path="/notifications" element={<Layout title="Notifikasi" description="Kelola notifikasi sistem" />}>
             <Route index element={<div>Notification Management - Coming Soon</div>} />
