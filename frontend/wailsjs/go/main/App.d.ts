@@ -48,6 +48,8 @@ export function GetReferralPerformance(arg1:string):Promise<services.APIResponse
 
 export function GetSchedulerStatus():Promise<services.APIResponse>;
 
+export function GetKaryawanUsers():Promise<services.APIResponse>;
+
 export function GetUser(arg1:string):Promise<services.APIResponse>;
 
 export function Greet(arg1:string):Promise<string>;

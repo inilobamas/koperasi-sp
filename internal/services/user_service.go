@@ -511,3 +511,29 @@ func (s *UserService) CleanupExpiredSessions() error {
 	_, err := s.db.Exec("DELETE FROM user_sessions WHERE expires_at < ?", time.Now())
 	return err
 }
+
+func (s *UserService) GetKaryawanUsers() ([]models.User, error) {
+	rows, err := s.db.Query(`
+		SELECT id, email, name, role, active, created_at, updated_at
+		FROM users 
+		WHERE role = ? AND active = true
+		ORDER BY name ASC`, string(models.RoleKaryawan))
+	if err != nil {
+		return nil, fmt.Errorf("failed to query karyawan users: %v", err)
+	}
+	defer rows.Close()
+
+	users := make([]models.User, 0)
+	for rows.Next() {
+		var user models.User
+		err := rows.Scan(
+			&user.ID, &user.Email, &user.Name, &user.Role,
+			&user.Active, &user.CreatedAt, &user.UpdatedAt)
+		if err != nil {
+			return nil, fmt.Errorf("failed to scan karyawan user: %v", err)
+		}
+		users = append(users, user)
+	}
+
+	return users, nil
+}

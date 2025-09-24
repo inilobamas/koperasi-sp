@@ -94,6 +94,10 @@ export function GetSchedulerStatus() {
   return window['go']['main']['App']['GetSchedulerStatus']();
 }
 
+export function GetKaryawanUsers() {
+  return window['go']['main']['App']['GetKaryawanUsers']();
+}
+
 export function GetUser(arg1) {
   return window['go']['main']['App']['GetUser'](arg1);
 }

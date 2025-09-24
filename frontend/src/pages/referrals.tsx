@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Select } from "@/components/ui/select"
 import {
   Plus,
   Search,
@@ -20,8 +21,18 @@ import {
   XCircle,
   Clock,
 } from "lucide-react"
-import { CreateReferralCode, ListReferralCodes, UpdateReferralCode, DeleteReferralCode, ValidateReferralCode } from "../../wailsjs/go/main/App"
+import { CreateReferralCode, ListReferralCodes, UpdateReferralCode, DeleteReferralCode, ValidateReferralCode, GetKaryawanUsers } from "../../wailsjs/go/main/App"
 import { services } from "../../wailsjs/go/models"
+
+interface User {
+  id: string
+  name: string
+  email: string
+  role: string
+  active: boolean
+  created_at: string
+  updated_at: string
+}
 
 interface ReferralCode {
   id: string
@@ -60,6 +71,9 @@ export function Referrals() {
   const [selectedReferral, setSelectedReferral] = useState<ReferralCode | null>(null)
   const [showEditForm, setShowEditForm] = useState(false)
   
+  const [karyawanUsers, setKaryawanUsers] = useState<User[]>([])
+  const [karyawanLoading, setKaryawanLoading] = useState(false)
+  
   const [newReferral, setNewReferral] = useState({
     owner_user_id: "",
     quota: 10,
@@ -68,6 +82,20 @@ export function Referrals() {
 
   const [validationCode, setValidationCode] = useState("")
   const [validationResult, setValidationResult] = useState<any>(null)
+
+  const loadKaryawanUsers = async () => {
+    setKaryawanLoading(true)
+    try {
+      const response = await GetKaryawanUsers()
+      if (response.success) {
+        setKaryawanUsers(response.data as User[])
+      }
+    } catch (error) {
+      console.error("Error loading karyawan users:", error)
+    } finally {
+      setKaryawanLoading(false)
+    }
+  }
 
   const loadReferralCodes = async () => {
     setLoading(true)
@@ -95,6 +123,10 @@ export function Referrals() {
   useEffect(() => {
     loadReferralCodes()
   }, [page, ownerFilter, activeFilter])
+
+  useEffect(() => {
+    loadKaryawanUsers()
+  }, [])
 
   const handleCreateReferral = async () => {
     try {
@@ -199,26 +231,33 @@ export function Referrals() {
             <CardContent className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
-                  <Label htmlFor="owner">Owner User ID</Label>
-                  <Input
+                  <Label htmlFor="owner">Filter by Owner (Karyawan)</Label>
+                  <Select
                     id="owner"
-                    placeholder="User ID pemilik kode"
                     value={ownerFilter}
                     onChange={(e) => setOwnerFilter(e.target.value)}
-                  />
+                    placeholder="Semua karyawan"
+                  >
+                    <option value="">Semua karyawan</option>
+                    {karyawanUsers.map((user) => (
+                      <option key={user.id} value={user.id}>
+                        {user.name} ({user.email})
+                      </option>
+                    ))}
+                  </Select>
                 </div>
                 <div>
                   <Label htmlFor="active">Status</Label>
-                  <select
+                  <Select
                     id="active"
                     value={activeFilter === undefined ? "" : activeFilter.toString()}
                     onChange={(e) => setActiveFilter(e.target.value === "" ? undefined : e.target.value === "true")}
-                    className="w-full h-10 px-3 rounded-md border border-input bg-background"
+                    placeholder="Semua"
                   >
                     <option value="">Semua</option>
                     <option value="true">Aktif</option>
                     <option value="false">Tidak Aktif</option>
-                  </select>
+                  </Select>
                 </div>
                 <div className="flex items-end">
                   <Button 
@@ -245,13 +284,20 @@ export function Referrals() {
               <CardContent className="space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div>
-                    <Label htmlFor="owner_user_id">Owner User ID</Label>
-                    <Input
+                    <Label htmlFor="owner_user_id">Owner (Karyawan)</Label>
+                    <Select
                       id="owner_user_id"
                       value={newReferral.owner_user_id}
                       onChange={(e) => setNewReferral({ ...newReferral, owner_user_id: e.target.value })}
-                      placeholder="UUID user pemilik"
-                    />
+                      placeholder={karyawanLoading ? "Memuat..." : "Pilih karyawan"}
+                      disabled={karyawanLoading}
+                    >
+                      {karyawanUsers.map((user) => (
+                        <option key={user.id} value={user.id}>
+                          {user.name} ({user.email})
+                        </option>
+                      ))}
+                    </Select>
                   </div>
                   <div>
                     <Label htmlFor="quota">Quota Penggunaan</Label>

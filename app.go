@@ -884,3 +884,18 @@ func (a *App) DeleteUser(id string) (*services.APIResponse, error) {
 		Message: "User deleted successfully",
 	}, nil
 }
+
+func (a *App) GetKaryawanUsers() (*services.APIResponse, error) {
+	users, err := a.userService.GetKaryawanUsers()
+	if err != nil {
+		return &services.APIResponse{
+			Success: false,
+			Message: err.Error(),
+		}, nil
+	}
+
+	return &services.APIResponse{
+		Success: true,
+		Data: users,
+	}, nil
+}
