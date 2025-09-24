@@ -36,7 +36,7 @@ import {
   ArrowDown,
 } from "lucide-react"
 import { formatCurrency } from "@/lib/utils"
-import { CreateCustomer, ListCustomers, GetCustomer, UpdateCustomer, DeleteCustomer, UploadDocument, ListDocuments } from "../../wailsjs/go/main/App"
+import { CreateCustomer, ListCustomers, GetCustomer, UpdateCustomer, DeleteCustomer, UploadDocument, ListDocuments, ListReferralCodes } from "../../wailsjs/go/main/App"
 import { services } from "../../wailsjs/go/models"
 import { usePermissions } from "@/hooks/usePermissions"
 
@@ -97,6 +97,7 @@ export function Customers() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [customerToDelete, setCustomerToDelete] = useState<string | null>(null)
   const [showDocumentUpload, setShowDocumentUpload] = useState(false)
+  const [karyawanReferralCode, setKaryawanReferralCode] = useState("")
   
   const [editFormData, setEditFormData] = useState({
     name: "",
@@ -132,6 +133,26 @@ export function Customers() {
     referral_code: "",
   })
 
+  const loadKaryawanReferralCode = async () => {
+    if (!isKaryawan() || !user?.id) return
+    
+    try {
+      const request = new services.ReferralCodeListRequest({
+        page: 1,
+        limit: 1,
+        owner_user_id: user.id,
+        active: true,
+      })
+      
+      const response = await ListReferralCodes(request)
+      if (response.success && response.data.referral_codes?.length > 0) {
+        setKaryawanReferralCode(response.data.referral_codes[0].code)
+      }
+    } catch (error) {
+      console.error("Error loading karyawan referral code:", error)
+    }
+  }
+
   const loadCustomers = async () => {
     setLoading(true)
     try {
@@ -142,7 +163,7 @@ export function Customers() {
         status: statusFilter,
         verified: verifiedFilter,
         // If karyawan, only show customers from their referral codes
-        owner_user_id: isKaryawan() ? user?.id : "",
+        owner_user_id: isKaryawan() ? user?.id || "" : "",
       })
       
       const response = await ListCustomers(request)
@@ -185,6 +206,10 @@ export function Customers() {
     loadCustomers()
   }, [page, searchTerm, statusFilter, verifiedFilter, sortBy, sortOrder])
 
+  useEffect(() => {
+    loadKaryawanReferralCode()
+  }, [user, isKaryawan])
+
   // Client-side sorting function
   const sortCustomers = (customers: Customer[]) => {
     if (!sortBy) return customers
@@ -223,6 +248,7 @@ export function Customers() {
     try {
       const request = new services.CustomerCreateRequest({
         ...newCustomer,
+        referral_code: isKaryawan() ? karyawanReferralCode : newCustomer.referral_code,
         date_of_birth: new Date(newCustomer.date_of_birth),
       })
       
@@ -420,7 +446,7 @@ export function Customers() {
             }
           </p>
         </div>
-        {canViewAllCustomers() && (
+        {(canViewAllCustomers() || isKaryawan()) && (
           <Button onClick={() => setShowCreateForm(true)}>
             <Plus className="mr-2 h-4 w-4" />
             Tambah Nasabah
@@ -529,9 +555,14 @@ export function Customers() {
               <div>
                 <h3 className="font-medium text-blue-800">Mode Karyawan</h3>
                 <p className="text-sm text-blue-600">
-                  Anda hanya dapat melihat dan mengelola nasabah yang Anda tangani. 
-                  Anda dapat melakukan verifikasi dokumen dan pemberian pinjaman untuk nasabah Anda.
+                  Anda hanya dapat melihat dan mengelola nasabah yang menggunakan kode referral Anda. 
+                  Nasabah baru yang Anda tambahkan akan otomatis menggunakan kode referral Anda.
                 </p>
+                {karyawanReferralCode && (
+                  <p className="text-xs text-blue-500 font-medium mt-1">
+                    Kode referral Anda: {karyawanReferralCode}
+                  </p>
+                )}
               </div>
             </div>
           </CardContent>
@@ -613,13 +644,23 @@ export function Customers() {
                 />
               </div>
               <div>
-                <Label htmlFor="referral_code">Kode Referral (Opsional)</Label>
+                <Label htmlFor="referral_code">
+                  Kode Referral {!isKaryawan() && "(Opsional)"}
+                  {isKaryawan() && " (Otomatis)"}
+                </Label>
                 <Input
                   id="referral_code"
-                  value={newCustomer.referral_code}
-                  onChange={(e) => setNewCustomer({ ...newCustomer, referral_code: e.target.value })}
-                  placeholder="KODE123"
+                  value={isKaryawan() ? karyawanReferralCode : newCustomer.referral_code}
+                  onChange={(e) => !isKaryawan() && setNewCustomer({ ...newCustomer, referral_code: e.target.value })}
+                  placeholder={isKaryawan() ? "Memuat kode referral..." : "KODE123"}
+                  disabled={isKaryawan()}
+                  className={isKaryawan() ? "bg-muted" : ""}
                 />
+                {isKaryawan() && (
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Nasabah baru akan otomatis menggunakan kode referral Anda
+                  </p>
+                )}
               </div>
             </div>
             <div className="space-y-4">
@@ -737,7 +778,7 @@ export function Customers() {
                         >
                           <Eye className="h-4 w-4" />
                         </Button>
-                        {canManageCustomer(customer.id) && (
+                        {canManageCustomer() && (
                           <Button
                             variant="outline"
                             size="icon"

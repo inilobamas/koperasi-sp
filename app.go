@@ -101,6 +101,7 @@ func (a *App) CreateCustomer(req services.CustomerCreateRequest) (*services.APIR
 	}, nil
 }
 
+// GetCustomer with role-based access control
 func (a *App) GetCustomer(id string) (*services.APIResponse, error) {
 	customer, err := a.customerService.GetCustomer(id)
 	if err != nil {
@@ -116,7 +117,72 @@ func (a *App) GetCustomer(id string) (*services.APIResponse, error) {
 	}, nil
 }
 
+// GetCustomerWithAuth - role-based version that checks access permissions
+func (a *App) GetCustomerWithAuth(id, userID, userRole string) (*services.APIResponse, error) {
+	// Check if user can access this customer
+	canAccess, err := a.customerService.CanUserAccessCustomer(id, userID, userRole)
+	if err != nil {
+		return &services.APIResponse{
+			Success: false,
+			Message: err.Error(),
+		}, nil
+	}
+	
+	if !canAccess {
+		return &services.APIResponse{
+			Success: false,
+			Message: "Access denied: You don't have permission to view this customer",
+		}, nil
+	}
+	
+	customer, err := a.customerService.GetCustomer(id)
+	if err != nil {
+		return &services.APIResponse{
+			Success: false,
+			Message: err.Error(),
+		}, nil
+	}
+
+	return &services.APIResponse{
+		Success: true,
+		Data:    customer,
+	}, nil
+}
+
 func (a *App) UpdateCustomer(id string, req services.CustomerUpdateRequest) (*services.APIResponse, error) {
+	customer, err := a.customerService.UpdateCustomer(id, req)
+	if err != nil {
+		return &services.APIResponse{
+			Success: false,
+			Message: err.Error(),
+		}, nil
+	}
+
+	return &services.APIResponse{
+		Success: true,
+		Message: "Customer updated successfully",
+		Data:    customer,
+	}, nil
+}
+
+// UpdateCustomerWithAuth - role-based version that checks access permissions
+func (a *App) UpdateCustomerWithAuth(id, userID, userRole string, req services.CustomerUpdateRequest) (*services.APIResponse, error) {
+	// Check if user can access this customer
+	canAccess, err := a.customerService.CanUserAccessCustomer(id, userID, userRole)
+	if err != nil {
+		return &services.APIResponse{
+			Success: false,
+			Message: err.Error(),
+		}, nil
+	}
+	
+	if !canAccess {
+		return &services.APIResponse{
+			Success: false,
+			Message: "Access denied: You don't have permission to update this customer",
+		}, nil
+	}
+	
 	customer, err := a.customerService.UpdateCustomer(id, req)
 	if err != nil {
 		return &services.APIResponse{
@@ -148,6 +214,30 @@ func (a *App) ListCustomers(req services.CustomerListRequest) (*services.APIResp
 }
 
 func (a *App) DeleteCustomer(id string) (*services.APIResponse, error) {
+	err := a.customerService.DeleteCustomer(id)
+	if err != nil {
+		return &services.APIResponse{
+			Success: false,
+			Message: err.Error(),
+		}, nil
+	}
+
+	return &services.APIResponse{
+		Success: true,
+		Message: "Customer deleted successfully",
+	}, nil
+}
+
+// DeleteCustomerWithAuth - role-based version that checks access permissions (superadmin/admin only)
+func (a *App) DeleteCustomerWithAuth(id, userID, userRole string) (*services.APIResponse, error) {
+	// Only superadmin and admin can delete customers
+	if userRole != "superadmin" && userRole != "admin" {
+		return &services.APIResponse{
+			Success: false,
+			Message: "Access denied: Only administrators can delete customers",
+		}, nil
+	}
+	
 	err := a.customerService.DeleteCustomer(id)
 	if err != nil {
 		return &services.APIResponse{

@@ -50,7 +50,7 @@ interface LoanInstallment {
 
 interface LoanModalProps {
   mode: 'create' | 'edit' | 'view'
-  loan?: Loan
+  loan?: Loan | null
   open: boolean
   onOpenChange: (open: boolean) => void
   onSubmit?: (data: any) => Promise<void>
@@ -374,7 +374,7 @@ export function LoanModal({ mode, loan, open, onOpenChange, onSubmit, customers 
                     value={formData.customer_id}
                     onChange={(e) => setFormData({ ...formData, customer_id: e.target.value })}
                     className="w-full h-10 px-3 rounded-md border border-input bg-background"
-                    disabled={mode === 'view'}
+                    disabled={mode !== 'create'}
                     required
                   >
                     <option value="">Pilih Nasabah</option>

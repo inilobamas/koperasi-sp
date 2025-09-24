@@ -14,10 +14,11 @@ export function usePermissions() {
   const canViewAllLoans = () => isSuperAdmin() || isAdmin()
   const canViewAllDocuments = () => isSuperAdmin() || isAdmin()
   
-  // Karyawan can only manage their own customers
-  const canManageCustomer = (customerOwner?: string) => {
+  // Karyawan can only manage customers from their referral codes
+  // Since the customer list is already filtered, karyawan can manage all displayed customers
+  const canManageCustomer = (customerId?: string) => {
     if (isSuperAdmin() || isAdmin()) return true
-    if (isKaryawan() && customerOwner === user?.id) return true
+    if (isKaryawan()) return true // Karyawan can manage all customers they can see (already filtered)
     return false
   }
   

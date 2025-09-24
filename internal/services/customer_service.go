@@ -58,6 +58,12 @@ type CustomerListRequest struct {
 	OwnerUserID string `json:"owner_user_id"`
 }
 
+// Request context for role-based operations
+type UserContext struct {
+	UserID   string `json:"user_id"`
+	UserRole string `json:"user_role"`
+}
+
 type CustomerListResponse struct {
 	Customers []models.Customer `json:"customers"`
 	Total     int               `json:"total"`
@@ -466,6 +472,31 @@ func (s *CustomerService) DeleteCustomer(id string) error {
 	}
 
 	return nil
+}
+
+// Helper method to check if a user can access a customer (for karyawan role-based access)
+func (s *CustomerService) CanUserAccessCustomer(customerID, userID, userRole string) (bool, error) {
+	// Superadmin and admin can access all customers
+	if userRole == "superadmin" || userRole == "admin" {
+		return true, nil
+	}
+	
+	// For karyawan, check if customer belongs to their referral code
+	if userRole == "karyawan" {
+		var count int
+		err := s.db.QueryRow(`
+			SELECT COUNT(*)
+			FROM customers c
+			JOIN referral_codes rc ON c.referral_code_id = rc.id
+			WHERE c.id = ? AND rc.owner_user_id = ?`,
+			customerID, userID).Scan(&count)
+		if err != nil {
+			return false, fmt.Errorf("failed to check customer access: %v", err)
+		}
+		return count > 0, nil
+	}
+	
+	return false, nil
 }
 
 func (s *CustomerService) VerifyKTP(customerID, verifierUserID string) error {
