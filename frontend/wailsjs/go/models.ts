@@ -143,6 +143,7 @@ export namespace services {
 	    search: string;
 	    status: string;
 	    verified?: boolean;
+	    owner_user_id: string;
 	
 	    static createFrom(source: any = {}) {
 	        return new CustomerListRequest(source);
@@ -155,6 +156,7 @@ export namespace services {
 	        this.search = source["search"];
 	        this.status = source["status"];
 	        this.verified = source["verified"];
+	        this.owner_user_id = source["owner_user_id"];
 	    }
 	}
 	export class CustomerUpdateRequest {

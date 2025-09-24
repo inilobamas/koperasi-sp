@@ -294,10 +294,19 @@ export function Customers() {
   }
 
   const handleCreateCustomer = async () => {
+    // Declare variables at function scope so they're available in catch block
+    let referralCodeToUse = ""
+    
     try {
       // Validate required fields
       if (!newCustomer.nik || !newCustomer.name || !newCustomer.phone) {
         showError("Field Required", "NIK, Name, and Phone are required fields")
+        return
+      }
+
+      // Validate date of birth
+      if (!newCustomer.date_of_birth) {
+        showError("Field Required", "Date of birth is required")
         return
       }
 
@@ -307,15 +316,32 @@ export function Customers() {
         return
       }
 
-      const referralCodeToUse = isKaryawan() ? karyawanReferralCode : newCustomer.referral_code
+      referralCodeToUse = isKaryawan() ? karyawanReferralCode : newCustomer.referral_code
       
       console.log("Creating customer with referral code:", referralCodeToUse)
       
+      console.log("Creating customer with data:", newCustomer)
+      console.log("Referral code to use:", referralCodeToUse)
+      
+      // Ensure date is properly formatted
+      const dateOfBirth = newCustomer.date_of_birth ? new Date(newCustomer.date_of_birth) : new Date()
+      
       const request = new services.CustomerCreateRequest({
-        ...newCustomer,
-        referral_code: referralCodeToUse,
-        date_of_birth: new Date(newCustomer.date_of_birth),
+        nik: newCustomer.nik,
+        name: newCustomer.name,
+        email: newCustomer.email || "",
+        phone: newCustomer.phone,
+        date_of_birth: dateOfBirth,
+        address: newCustomer.address || "",
+        city: newCustomer.city || "",
+        province: newCustomer.province || "",
+        postal_code: newCustomer.postal_code || "",
+        occupation: newCustomer.occupation || "",
+        monthly_income: newCustomer.monthly_income || 0,
+        referral_code: referralCodeToUse || "",
       })
+      
+      console.log("Customer create request:", request)
       
       const response = await CreateCustomer(request)
       console.log("Create customer response:", response)
@@ -343,7 +369,19 @@ export function Customers() {
       }
     } catch (error) {
       console.error("Error creating customer:", error)
-      showError("Error", "An unexpected error occurred while creating the customer")
+      console.error("Error details:", {
+        message: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined,
+        customerData: newCustomer,
+        referralCode: referralCodeToUse
+      })
+      
+      let errorMessage = "An unexpected error occurred while creating the customer"
+      if (error instanceof Error) {
+        errorMessage += `: ${error.message}`
+      }
+      
+      showError("Error", errorMessage)
     }
   }
 
