@@ -8,6 +8,7 @@ import (
 	"mime/multipart"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"time"
 
@@ -63,6 +64,29 @@ var allowedMimeTypes = map[string]bool{
 }
 
 var maxFileSize int64 = 10 * 1024 * 1024 // 10MB
+
+// getDocumentsPath returns the appropriate documents path based on the OS
+func (s *DocumentService) getDocumentsPath() string {
+	// If explicitly configured, use that path
+	if s.cfg.Storage.DocumentsPath != "" {
+		return s.cfg.Storage.DocumentsPath
+	}
+	
+	// Windows-specific path detection
+	if runtime.GOOS == "windows" {
+		// Try to get user's Documents folder
+		if userProfile := os.Getenv("USERPROFILE"); userProfile != "" {
+			documentsPath := filepath.Join(userProfile, "Documents", "KoperasiApp", "Documents")
+			return documentsPath
+		}
+		// Fallback to application directory
+		return filepath.Join("C:", "KoperasiApp", "Documents")
+	}
+	
+	// Unix/Linux fallback
+	homeDir, _ := os.UserHomeDir()
+	return filepath.Join(homeDir, ".koperasi", "documents")
+}
 
 func (s *DocumentService) UploadDocument(req DocumentUploadRequest, fileContent io.Reader) (*models.Document, error) {
 	// Validate customer exists
@@ -121,8 +145,10 @@ func (s *DocumentService) UploadDocument(req DocumentUploadRequest, fileContent 
 	ext := filepath.Ext(req.File.Filename)
 	filename := fmt.Sprintf("%s_%s_%d%s", req.CustomerID, req.Type, time.Now().Unix(), ext)
 	
+	// Get documents directory path
+	documentsDir := s.getDocumentsPath()
+	
 	// Ensure documents directory exists
-	documentsDir := s.cfg.Storage.DocumentsPath
 	if err := os.MkdirAll(documentsDir, 0755); err != nil {
 		return nil, fmt.Errorf("failed to create documents directory: %v", err)
 	}
@@ -178,6 +204,9 @@ func (s *DocumentService) UploadDocument(req DocumentUploadRequest, fileContent 
 		os.Remove(filePath) // Cleanup on error
 		return nil, fmt.Errorf("failed to insert document record: %v", err)
 	}
+
+	// Create notifications for admin and superadmin users
+	go s.createDocumentApprovalNotifications(document.ID.String(), req.CustomerID)
 
 	return document, nil
 }
@@ -494,4 +523,157 @@ func (s *DocumentService) GetPendingDocuments() ([]models.Document, error) {
 	}
 
 	return documents, nil
+}
+
+// createDocumentApprovalNotifications creates notifications for admin and superadmin users when a document is uploaded
+func (s *DocumentService) createDocumentApprovalNotifications(documentID, customerID string) {
+	// Get customer details
+	var customerName string
+	err := s.db.QueryRow("SELECT name FROM customers WHERE id = ?", customerID).Scan(&customerName)
+	if err != nil {
+		fmt.Printf("Error getting customer name for notification: %v\n", err)
+		return
+	}
+
+	// Get document details
+	var documentType, originalName string
+	err = s.db.QueryRow("SELECT type, original_name FROM documents WHERE id = ?", documentID).Scan(&documentType, &originalName)
+	if err != nil {
+		fmt.Printf("Error getting document details for notification: %v\n", err)
+		return
+	}
+
+	// Get all admin and superadmin users
+	rows, err := s.db.Query("SELECT id, name, email FROM users WHERE role IN ('admin', 'superadmin') AND active = true")
+	if err != nil {
+		fmt.Printf("Error getting admin users for notification: %v\n", err)
+		return
+	}
+	defer rows.Close()
+
+	// Create notification message
+	documentTypeName := getDocumentTypeName(documentType)
+	message := fmt.Sprintf("Dokumen %s baru diupload oleh %s (%s) dan menunggu persetujuan.", 
+		documentTypeName, customerName, originalName)
+
+	// Insert notifications for each admin/superadmin
+	for rows.Next() {
+		var userID, userName, userEmail string
+		if err := rows.Scan(&userID, &userName, &userEmail); err != nil {
+			continue
+		}
+
+		// Insert notification record
+		notificationID := uuid.New()
+		_, err = s.db.Exec(`
+			INSERT INTO document_notifications (id, user_id, document_id, customer_id, message, read, created_at)
+			VALUES (?, ?, ?, ?, ?, false, datetime('now'))`,
+			notificationID.String(), userID, documentID, customerID, message)
+		
+		if err != nil {
+			fmt.Printf("Error creating notification for user %s: %v\n", userID, err)
+		}
+	}
+}
+
+// getDocumentTypeName returns the human-readable name for document type
+func getDocumentTypeName(docType string) string {
+	switch docType {
+	case "ktp":
+		return "KTP"
+	case "kk":
+		return "Kartu Keluarga"
+	case "sim":
+		return "SIM"
+	case "npwp":
+		return "NPWP"
+	default:
+		return docType
+	}
+}
+
+// GetUnreadNotificationsCount returns the count of unread document notifications for a user
+func (s *DocumentService) GetUnreadNotificationsCount(userID string) (int, error) {
+	var count int
+	err := s.db.QueryRow(`
+		SELECT COUNT(*) 
+		FROM document_notifications 
+		WHERE user_id = ? AND read = false`,
+		userID).Scan(&count)
+	
+	if err != nil {
+		return 0, fmt.Errorf("failed to get unread notifications count: %v", err)
+	}
+	
+	return count, nil
+}
+
+// GetDocumentNotifications returns document notifications for a user
+func (s *DocumentService) GetDocumentNotifications(userID string, limit int) ([]DocumentNotification, error) {
+	rows, err := s.db.Query(`
+		SELECT dn.id, dn.user_id, dn.document_id, dn.customer_id, dn.message, dn.read, dn.created_at,
+		       c.name as customer_name, d.type as document_type, d.original_name
+		FROM document_notifications dn
+		JOIN customers c ON dn.customer_id = c.id
+		JOIN documents d ON dn.document_id = d.id
+		WHERE dn.user_id = ?
+		ORDER BY dn.created_at DESC
+		LIMIT ?`,
+		userID, limit)
+	
+	if err != nil {
+		return nil, fmt.Errorf("failed to get document notifications: %v", err)
+	}
+	defer rows.Close()
+
+	var notifications []DocumentNotification
+	for rows.Next() {
+		var notif DocumentNotification
+		var customerName, documentType, originalName string
+		
+		err := rows.Scan(
+			&notif.ID, &notif.UserID, &notif.DocumentID, &notif.CustomerID,
+			&notif.Message, &notif.Read, &notif.CreatedAt,
+			&customerName, &documentType, &originalName)
+		
+		if err != nil {
+			return nil, fmt.Errorf("failed to scan notification: %v", err)
+		}
+		
+		notif.CustomerName = customerName
+		notif.DocumentType = documentType
+		notif.OriginalName = originalName
+		notifications = append(notifications, notif)
+	}
+	
+	return notifications, nil
+}
+
+// MarkNotificationAsRead marks a notification as read
+func (s *DocumentService) MarkNotificationAsRead(notificationID string) error {
+	_, err := s.db.Exec(`
+		UPDATE document_notifications 
+		SET read = true, updated_at = datetime('now')
+		WHERE id = ?`,
+		notificationID)
+	
+	if err != nil {
+		return fmt.Errorf("failed to mark notification as read: %v", err)
+	}
+	
+	return nil
+}
+
+// DocumentNotification represents a document approval notification
+type DocumentNotification struct {
+	ID           string `json:"id"`
+	UserID       string `json:"user_id"`
+	DocumentID   string `json:"document_id"`
+	CustomerID   string `json:"customer_id"`
+	Message      string `json:"message"`
+	Read         bool   `json:"read"`
+	CreatedAt    string `json:"created_at"`
+	CustomerName string `json:"customer_name"`
+	DocumentType string `json:"document_type"`
+	OriginalName string `json:"original_name"`
 }

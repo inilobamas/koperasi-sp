@@ -50,11 +50,12 @@ type CustomerUpdateRequest struct {
 }
 
 type CustomerListRequest struct {
-	Page     int    `json:"page"`
-	Limit    int    `json:"limit"`
-	Search   string `json:"search"`
-	Status   string `json:"status"`
-	Verified *bool  `json:"verified"`
+	Page        int    `json:"page"`
+	Limit       int    `json:"limit"`
+	Search      string `json:"search"`
+	Status      string `json:"status"`
+	Verified    *bool  `json:"verified"`
+	OwnerUserID string `json:"owner_user_id"`
 }
 
 type CustomerListResponse struct {
@@ -322,27 +323,35 @@ func (s *CustomerService) ListCustomers(req CustomerListRequest) (*CustomerListR
 	args := make([]interface{}, 0)
 
 	queryBuilder.WriteString(`
-		SELECT id, nik, name, email, phone, date_of_birth, address, city, province, postal_code,
-		       occupation, monthly_income, referral_code_id, status, ktp_verified, created_at, updated_at
-		FROM customers WHERE 1=1`)
+		SELECT c.id, c.nik, c.name, c.email, c.phone, c.date_of_birth, c.address, c.city, c.province, c.postal_code,
+		       c.occupation, c.monthly_income, c.referral_code_id, c.status, c.ktp_verified, c.created_at, c.updated_at
+		FROM customers c 
+		LEFT JOIN referral_codes rc ON c.referral_code_id = rc.id
+		WHERE 1=1`)
 
 	// Add search filter
 	if req.Search != "" {
-		queryBuilder.WriteString(" AND (name LIKE ? OR address LIKE ? OR city LIKE ?)")
+		queryBuilder.WriteString(" AND (c.name LIKE ? OR c.address LIKE ? OR c.city LIKE ?)")
 		searchPattern := "%" + req.Search + "%"
 		args = append(args, searchPattern, searchPattern, searchPattern)
 	}
 
 	// Add status filter
 	if req.Status != "" {
-		queryBuilder.WriteString(" AND status = ?")
+		queryBuilder.WriteString(" AND c.status = ?")
 		args = append(args, req.Status)
 	}
 
 	// Add verified filter
 	if req.Verified != nil {
-		queryBuilder.WriteString(" AND ktp_verified = ?")
+		queryBuilder.WriteString(" AND c.ktp_verified = ?")
 		args = append(args, *req.Verified)
+	}
+
+	// Add owner user ID filter (for karyawan to see only their customers)
+	if req.OwnerUserID != "" {
+		queryBuilder.WriteString(" AND rc.owner_user_id = ?")
+		args = append(args, req.OwnerUserID)
 	}
 
 	// Add ordering and pagination
@@ -397,22 +406,27 @@ func (s *CustomerService) ListCustomers(req CustomerListRequest) (*CustomerListR
 	countQuery := strings.Builder{}
 	countArgs := make([]interface{}, 0)
 
-	countQuery.WriteString("SELECT COUNT(*) FROM customers WHERE 1=1")
+	countQuery.WriteString("SELECT COUNT(*) FROM customers c LEFT JOIN referral_codes rc ON c.referral_code_id = rc.id WHERE 1=1")
 
 	if req.Search != "" {
-		countQuery.WriteString(" AND (name LIKE ? OR address LIKE ? OR city LIKE ?)")
+		countQuery.WriteString(" AND (c.name LIKE ? OR c.address LIKE ? OR c.city LIKE ?)")
 		searchPattern := "%" + req.Search + "%"
 		countArgs = append(countArgs, searchPattern, searchPattern, searchPattern)
 	}
 
 	if req.Status != "" {
-		countQuery.WriteString(" AND status = ?")
+		countQuery.WriteString(" AND c.status = ?")
 		countArgs = append(countArgs, req.Status)
 	}
 
 	if req.Verified != nil {
-		countQuery.WriteString(" AND ktp_verified = ?")
+		countQuery.WriteString(" AND c.ktp_verified = ?")
 		countArgs = append(countArgs, *req.Verified)
+	}
+
+	if req.OwnerUserID != "" {
+		countQuery.WriteString(" AND rc.owner_user_id = ?")
+		countArgs = append(countArgs, req.OwnerUserID)
 	}
 
 	var total int

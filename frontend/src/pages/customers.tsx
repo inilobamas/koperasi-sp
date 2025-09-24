@@ -31,6 +31,9 @@ import {
   Download,
   X,
   Save,
+  ArrowUpDown,
+  ArrowUp,
+  ArrowDown,
 } from "lucide-react"
 import { formatCurrency } from "@/lib/utils"
 import { CreateCustomer, ListCustomers, GetCustomer, UpdateCustomer, DeleteCustomer, UploadDocument, ListDocuments } from "../../wailsjs/go/main/App"
@@ -84,6 +87,8 @@ export function Customers() {
   const [searchTerm, setSearchTerm] = useState("")
   const [statusFilter, setStatusFilter] = useState("")
   const [verifiedFilter, setVerifiedFilter] = useState<boolean | undefined>()
+  const [sortBy, setSortBy] = useState("")
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc")
   
   const [showCreateForm, setShowCreateForm] = useState(false)
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null)
@@ -136,8 +141,8 @@ export function Customers() {
         search: searchTerm,
         status: statusFilter,
         verified: verifiedFilter,
-        // If karyawan, only show their own customers (this would be filtered on backend)
-        owner_user_id: isKaryawan() ? user?.id : undefined,
+        // If karyawan, only show customers from their referral codes
+        owner_user_id: isKaryawan() ? user?.id : "",
       })
       
       const response = await ListCustomers(request)
@@ -165,7 +170,8 @@ export function Customers() {
             return customer
           })
         )
-        setCustomers(customersWithDocs)
+        const sortedCustomers = sortCustomers(customersWithDocs)
+        setCustomers(sortedCustomers)
         setTotal(data.total || 0)
       }
     } catch (error) {
@@ -177,7 +183,41 @@ export function Customers() {
 
   useEffect(() => {
     loadCustomers()
-  }, [page, searchTerm, statusFilter, verifiedFilter])
+  }, [page, searchTerm, statusFilter, verifiedFilter, sortBy, sortOrder])
+
+  // Client-side sorting function
+  const sortCustomers = (customers: Customer[]) => {
+    if (!sortBy) return customers
+    
+    return [...customers].sort((a, b) => {
+      let aValue: string | number = ""
+      let bValue: string | number = ""
+      
+      switch (sortBy) {
+        case "name":
+          aValue = a.name.toLowerCase()
+          bValue = b.name.toLowerCase()
+          break
+        case "nik":
+          aValue = a.nik
+          bValue = b.nik
+          break
+        case "city":
+          aValue = a.city.toLowerCase()
+          bValue = b.city.toLowerCase()
+          break
+        default:
+          aValue = new Date(a.created_at).getTime()
+          bValue = new Date(b.created_at).getTime()
+      }
+      
+      if (sortOrder === "asc") {
+        return aValue < bValue ? -1 : aValue > bValue ? 1 : 0
+      } else {
+        return aValue > bValue ? -1 : aValue < bValue ? 1 : 0
+      }
+    })
+  }
 
   const handleCreateCustomer = async () => {
     try {
@@ -397,8 +437,8 @@ export function Customers() {
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <div>
+          <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
+            <div className="md:col-span-2">
               <Label htmlFor="search">Cari Nasabah</Label>
               <div className="relative">
                 <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
@@ -439,14 +479,39 @@ export function Customers() {
                 <option value="false">Belum Terverifikasi</option>
               </select>
             </div>
-            <div className="flex items-end">
+            <div>
+              <Label htmlFor="sortBy">Urutkan Berdasarkan</Label>
+              <select
+                id="sortBy"
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value)}
+                className="w-full h-10 px-3 rounded-md border border-input bg-background"
+              >
+                <option value="">Tanggal Daftar</option>
+                <option value="name">Nama</option>
+                <option value="nik">NIK</option>
+                <option value="city">Kota</option>
+              </select>
+            </div>
+            <div className="flex items-end space-x-2">
+              <Button 
+                variant="outline"
+                size="icon"
+                onClick={() => setSortOrder(sortOrder === "asc" ? "desc" : "asc")}
+                className="shrink-0"
+              >
+                {sortOrder === "asc" ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />}
+              </Button>
               <Button 
                 variant="outline" 
                 onClick={() => {
                   setSearchTerm("")
                   setStatusFilter("")
                   setVerifiedFilter(undefined)
+                  setSortBy("")
+                  setSortOrder("asc")
                 }}
+                className="whitespace-nowrap"
               >
                 Reset Filter
               </Button>
@@ -742,136 +807,210 @@ export function Customers() {
 
       {/* Customer Detail Modal */}
       <Dialog open={showDetailModal} onOpenChange={setShowDetailModal}>
-        <DialogContent className="max-w-4xl">
+        <DialogContent className="max-w-6xl max-h-[90vh] overflow-hidden">
           <DialogHeader>
-            <DialogTitle>Detail Nasabah</DialogTitle>
+            <DialogTitle className="flex items-center space-x-2">
+              <User className="h-5 w-5" />
+              <span>Detail Nasabah</span>
+            </DialogTitle>
             <DialogDescription>
               Informasi lengkap nasabah
             </DialogDescription>
           </DialogHeader>
           {selectedCustomer && (
-            <div className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="space-y-4">
-                  <h3 className="font-semibold">Informasi Personal</h3>
-                  <div className="space-y-2">
-                    <div className="flex justify-between">
-                      <span className="text-sm text-muted-foreground">NIK:</span>
-                      <span className="text-sm font-medium">{selectedCustomer.nik}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-sm text-muted-foreground">Nama:</span>
-                      <span className="text-sm font-medium">{selectedCustomer.name}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-sm text-muted-foreground">Email:</span>
-                      <span className="text-sm font-medium">{selectedCustomer.email}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-sm text-muted-foreground">Telepon:</span>
-                      <span className="text-sm font-medium">{selectedCustomer.phone}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-sm text-muted-foreground">Tanggal Lahir:</span>
-                      <span className="text-sm font-medium">
-                        {new Date(selectedCustomer.date_of_birth).toLocaleDateString('id-ID')}
-                      </span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-sm text-muted-foreground">Pekerjaan:</span>
-                      <span className="text-sm font-medium">{selectedCustomer.occupation}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-sm text-muted-foreground">Penghasilan:</span>
-                      <span className="text-sm font-medium">{formatCurrency(selectedCustomer.monthly_income)}</span>
-                    </div>
-                  </div>
-                </div>
+            <div className="overflow-y-auto flex-1 px-1">
+              <Tabs defaultValue="personal" className="w-full">
+                <TabsList className="grid w-full grid-cols-4">
+                  <TabsTrigger value="personal">Informasi Personal</TabsTrigger>
+                  <TabsTrigger value="address">Alamat</TabsTrigger>
+                  <TabsTrigger value="status">Status & Verifikasi</TabsTrigger>
+                  <TabsTrigger value="documents">Dokumen</TabsTrigger>
+                </TabsList>
                 
-                <div className="space-y-4">
-                  <h3 className="font-semibold">Alamat</h3>
-                  <div className="space-y-2">
-                    <div className="flex justify-between">
-                      <span className="text-sm text-muted-foreground">Alamat:</span>
-                      <span className="text-sm font-medium text-right">{selectedCustomer.address}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-sm text-muted-foreground">Kota:</span>
-                      <span className="text-sm font-medium">{selectedCustomer.city}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-sm text-muted-foreground">Provinsi:</span>
-                      <span className="text-sm font-medium">{selectedCustomer.province}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-sm text-muted-foreground">Kode Pos:</span>
-                      <span className="text-sm font-medium">{selectedCustomer.postal_code}</span>
-                    </div>
-                  </div>
-                  
-                  <h3 className="font-semibold mt-6">Status</h3>
-                  <div className="space-y-2">
-                    <div className="flex justify-between">
-                      <span className="text-sm text-muted-foreground">Status:</span>
-                      {getStatusBadge(selectedCustomer.status, selectedCustomer.ktp_verified)}
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-sm text-muted-foreground">KTP Verified:</span>
-                      <span className="text-sm font-medium">
-                        {selectedCustomer.ktp_verified ? "Ya" : "Tidak"}
-                      </span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-sm text-muted-foreground">Terdaftar:</span>
-                      <span className="text-sm font-medium">
-                        {new Date(selectedCustomer.created_at).toLocaleDateString('id-ID')}
-                      </span>
-                    </div>
-                  </div>
-                  
-                  <h3 className="font-semibold mt-6">Dokumen</h3>
-                  <div className="space-y-2">
-                    {['ktp', 'kk', 'sim', 'npwp'].map((docType) => {
-                      const doc = selectedCustomer.documents?.find(d => d.type === docType)
-                      const label = docType === 'ktp' ? 'KTP' : docType === 'kk' ? 'KK' : docType === 'sim' ? 'SIM' : 'NPWP'
-                      return (
-                        <div key={docType} className="flex justify-between items-center">
-                          <span className="text-sm text-muted-foreground">{label}:</span>
-                          <div className="flex items-center space-x-2">
-                            {doc ? (
-                              <>
-                                <span className="text-sm font-medium">{doc.original_name}</span>
-                                {doc.status === 'verified' && (
-                                  <Badge variant="default" className="bg-green-100 text-green-800 text-xs">
-                                    Verified
-                                  </Badge>
-                                )}
-                                {doc.status === 'pending' && (
-                                  <Badge variant="secondary" className="text-xs">
-                                    Pending
-                                  </Badge>
-                                )}
-                                {doc.status === 'rejected' && (
-                                  <Badge variant="destructive" className="text-xs">
-                                    Rejected
-                                  </Badge>
-                                )}
-                              </>
-                            ) : (
-                              <Badge variant="outline" className="text-xs">
-                                Belum Upload
-                              </Badge>
-                            )}
+                <TabsContent value="personal" className="mt-6">
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="text-lg">Informasi Personal</CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="space-y-3">
+                          <div>
+                            <label className="text-sm font-medium text-muted-foreground">NIK</label>
+                            <p className="text-sm font-semibold">{selectedCustomer.nik}</p>
+                          </div>
+                          <div>
+                            <label className="text-sm font-medium text-muted-foreground">Nama Lengkap</label>
+                            <p className="text-sm font-semibold">{selectedCustomer.name}</p>
+                          </div>
+                          <div>
+                            <label className="text-sm font-medium text-muted-foreground">Email</label>
+                            <p className="text-sm font-semibold">{selectedCustomer.email}</p>
+                          </div>
+                          <div>
+                            <label className="text-sm font-medium text-muted-foreground">Nomor Telepon</label>
+                            <p className="text-sm font-semibold">{selectedCustomer.phone}</p>
                           </div>
                         </div>
-                      )
-                    })}
-                  </div>
-                </div>
-              </div>
+                        <div className="space-y-3">
+                          <div>
+                            <label className="text-sm font-medium text-muted-foreground">Tanggal Lahir</label>
+                            <p className="text-sm font-semibold">
+                              {new Date(selectedCustomer.date_of_birth).toLocaleDateString('id-ID')}
+                            </p>
+                          </div>
+                          <div>
+                            <label className="text-sm font-medium text-muted-foreground">Pekerjaan</label>
+                            <p className="text-sm font-semibold">{selectedCustomer.occupation}</p>
+                          </div>
+                          <div>
+                            <label className="text-sm font-medium text-muted-foreground">Penghasilan Bulanan</label>
+                            <p className="text-sm font-semibold">{formatCurrency(selectedCustomer.monthly_income)}</p>
+                          </div>
+                          <div>
+                            <label className="text-sm font-medium text-muted-foreground">Terdaftar</label>
+                            <p className="text-sm font-semibold">
+                              {new Date(selectedCustomer.created_at).toLocaleDateString('id-ID')}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </TabsContent>
+                
+                <TabsContent value="address" className="mt-6">
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="text-lg">Alamat Lengkap</CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="space-y-3">
+                          <div>
+                            <label className="text-sm font-medium text-muted-foreground">Alamat</label>
+                            <p className="text-sm font-semibold">{selectedCustomer.address}</p>
+                          </div>
+                          <div>
+                            <label className="text-sm font-medium text-muted-foreground">Kota/Kabupaten</label>
+                            <p className="text-sm font-semibold">{selectedCustomer.city}</p>
+                          </div>
+                        </div>
+                        <div className="space-y-3">
+                          <div>
+                            <label className="text-sm font-medium text-muted-foreground">Provinsi</label>
+                            <p className="text-sm font-semibold">{selectedCustomer.province}</p>
+                          </div>
+                          <div>
+                            <label className="text-sm font-medium text-muted-foreground">Kode Pos</label>
+                            <p className="text-sm font-semibold">{selectedCustomer.postal_code}</p>
+                          </div>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </TabsContent>
+                
+                <TabsContent value="status" className="mt-6">
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="text-lg">Status & Verifikasi</CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="space-y-3">
+                          <div>
+                            <label className="text-sm font-medium text-muted-foreground">Status Akun</label>
+                            <div className="mt-1">
+                              {getStatusBadge(selectedCustomer.status, selectedCustomer.ktp_verified)}
+                            </div>
+                          </div>
+                          <div>
+                            <label className="text-sm font-medium text-muted-foreground">KTP Terverifikasi</label>
+                            <p className="text-sm font-semibold">
+                              {selectedCustomer.ktp_verified ? "✅ Ya" : "❌ Belum"}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="space-y-3">
+                          <div>
+                            <label className="text-sm font-medium text-muted-foreground">Kode Referral</label>
+                            <p className="text-sm font-semibold">
+                              {selectedCustomer.referral_code_id ? "Ada" : "Tidak ada"}
+                            </p>
+                          </div>
+                          <div>
+                            <label className="text-sm font-medium text-muted-foreground">Terakhir Diupdate</label>
+                            <p className="text-sm font-semibold">
+                              {new Date(selectedCustomer.updated_at).toLocaleDateString('id-ID')}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </TabsContent>
+                
+                <TabsContent value="documents" className="mt-6">
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="text-lg">Dokumen</CardTitle>
+                      <CardDescription>Status dokumen yang diperlukan untuk verifikasi</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {['ktp', 'kk', 'sim', 'npwp'].map((docType) => {
+                          const doc = selectedCustomer.documents?.find(d => d.type === docType)
+                          const label = docType === 'ktp' ? 'KTP' : docType === 'kk' ? 'Kartu Keluarga' : docType === 'sim' ? 'SIM' : 'NPWP'
+                          return (
+                            <Card key={docType} className="p-4">
+                              <div className="flex items-center justify-between">
+                                <div>
+                                  <h4 className="font-medium">{label}</h4>
+                                  {doc && (
+                                    <p className="text-xs text-muted-foreground">{doc.original_name}</p>
+                                  )}
+                                </div>
+                                <div className="text-right">
+                                  {doc ? (
+                                    <div className="space-y-1">
+                                      {doc.status === 'verified' && (
+                                        <Badge variant="default" className="bg-green-100 text-green-800">
+                                          ✅ Verified
+                                        </Badge>
+                                      )}
+                                      {doc.status === 'pending' && (
+                                        <Badge variant="secondary">
+                                          ⏳ Pending
+                                        </Badge>
+                                      )}
+                                      {doc.status === 'rejected' && (
+                                        <Badge variant="destructive">
+                                          ❌ Rejected
+                                        </Badge>
+                                      )}
+                                      <p className="text-xs text-muted-foreground">
+                                        {new Date(doc.created_at).toLocaleDateString('id-ID')}
+                                      </p>
+                                    </div>
+                                  ) : (
+                                    <Badge variant="outline">
+                                      📄 Belum Upload
+                                    </Badge>
+                                  )}
+                                </div>
+                              </div>
+                            </Card>
+                          )
+                        })}
+                      </div>
+                    </CardContent>
+                  </Card>
+                </TabsContent>
+              </Tabs>
             </div>
           )}
-          <DialogFooter>
+          <DialogFooter className="mt-4">
             <Button 
               variant="outline"
               onClick={() => {
@@ -879,6 +1018,7 @@ export function Customers() {
                 setShowDocumentUpload(true)
               }}
             >
+              <Upload className="mr-2 h-4 w-4" />
               Upload Dokumen
             </Button>
             <Button onClick={() => setShowDetailModal(false)}>Tutup</Button>
