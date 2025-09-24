@@ -13,6 +13,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
+import { LoanModal } from "@/components/LoanModal"
 import {
   Plus,
   Search,
@@ -88,28 +89,15 @@ export function Loans() {
   const [customerFilter, setCustomerFilter] = useState("")
   const [statusFilter, setStatusFilter] = useState("")
   
-  const [showCreateForm, setShowCreateForm] = useState(false)
-  const [showEditForm, setShowEditForm] = useState(false)
-  const [showDetailModal, setShowDetailModal] = useState(false)
+  const [showLoanModal, setShowLoanModal] = useState(false)
+  const [modalMode, setModalMode] = useState<'create' | 'edit' | 'view'>('create')
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [showPaymentModal, setShowPaymentModal] = useState(false)
   const [selectedLoan, setSelectedLoan] = useState<Loan | null>(null)
   const [selectedInstallment, setSelectedInstallment] = useState<LoanInstallment | null>(null)
   const [loanToDelete, setLoanToDelete] = useState<string | null>(null)
+  const [customers, setCustomers] = useState<Array<{ id: string; name: string; phone: string }>>([])
   
-  const [newLoan, setNewLoan] = useState({
-    customer_id: "",
-    amount: 0,
-    interest_rate: 0,
-    term: 12,
-  })
-
-  const [editLoanData, setEditLoanData] = useState({
-    amount: 0,
-    interest_rate: 0,
-    term: 12,
-    status: "",
-  })
 
   const [paymentData, setPaymentData] = useState({
     amount: 0,
@@ -155,51 +143,39 @@ export function Loans() {
     loadOverdueInstallments()
   }, [page, customerFilter, statusFilter])
 
-  const handleCreateLoan = async () => {
+  const handleCreateLoan = async (data: any) => {
     try {
-      const request = new services.LoanCreateRequest(newLoan)
+      const request = new services.LoanCreateRequest(data)
       
       const response = await CreateLoan(request)
       if (response.success) {
-        setShowCreateForm(false)
-        setNewLoan({
-          customer_id: "",
-          amount: 0,
-          interest_rate: 0,
-          term: 12,
-        })
         loadLoans()
       }
     } catch (error) {
       console.error("Error creating loan:", error)
+      throw error
     }
   }
 
   const handleEditLoan = (loan: Loan) => {
     setSelectedLoan(loan)
-    setEditLoanData({
-      amount: loan.amount,
-      interest_rate: loan.interest_rate,
-      term: loan.term,
-      status: loan.status,
-    })
-    setShowEditForm(true)
+    setModalMode('edit')
+    setShowLoanModal(true)
   }
 
-  const handleUpdateLoan = async () => {
+  const handleUpdateLoan = async (data: any) => {
     if (!selectedLoan) return
     
     try {
-      const request = new services.LoanUpdateRequest(editLoanData)
+      const request = new services.LoanUpdateRequest(data)
       
       const response = await UpdateLoan(selectedLoan.id, request)
       if (response.success) {
-        setShowEditForm(false)
-        setSelectedLoan(null)
         loadLoans()
       }
     } catch (error) {
       console.error("Error updating loan:", error)
+      throw error
     }
   }
 
@@ -259,7 +235,8 @@ export function Loans() {
       const response = await GetLoan(loan.id)
       if (response.success) {
         setSelectedLoan(response.data)
-        setShowDetailModal(true)
+        setModalMode('view')
+        setShowLoanModal(true)
       }
     } catch (error) {
       console.error("Error loading loan details:", error)
@@ -328,7 +305,11 @@ export function Loans() {
             Kelola pinjaman dan angsuran nasabah
           </p>
         </div>
-        <Button onClick={() => setShowCreateForm(true)}>
+        <Button onClick={() => {
+          setSelectedLoan(null)
+          setModalMode('create')
+          setShowLoanModal(true)
+        }}>
           <Plus className="mr-2 h-4 w-4" />
           Buat Pinjaman
         </Button>
@@ -457,65 +438,6 @@ export function Loans() {
             </CardContent>
           </Card>
 
-          {/* Create Loan Form */}
-          {showCreateForm && (
-            <Card>
-              <CardHeader>
-                <CardTitle>Buat Pinjaman Baru</CardTitle>
-                <CardDescription>Buat kontrak pinjaman untuk nasabah</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="customer_id">ID Nasabah</Label>
-                    <Input
-                      id="customer_id"
-                      value={newLoan.customer_id}
-                      onChange={(e) => setNewLoan({ ...newLoan, customer_id: e.target.value })}
-                      placeholder="UUID nasabah"
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="amount">Jumlah Pinjaman</Label>
-                    <Input
-                      id="amount"
-                      type="number"
-                      value={newLoan.amount}
-                      onChange={(e) => setNewLoan({ ...newLoan, amount: parseInt(e.target.value) || 0 })}
-                      placeholder="5000000"
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="interest_rate">Suku Bunga (%)</Label>
-                    <Input
-                      id="interest_rate"
-                      type="number"
-                      step="0.1"
-                      value={newLoan.interest_rate}
-                      onChange={(e) => setNewLoan({ ...newLoan, interest_rate: parseFloat(e.target.value) || 0 })}
-                      placeholder="15.5"
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="term">Jangka Waktu (bulan)</Label>
-                    <Input
-                      id="term"
-                      type="number"
-                      value={newLoan.term}
-                      onChange={(e) => setNewLoan({ ...newLoan, term: parseInt(e.target.value) || 12 })}
-                      placeholder="12"
-                    />
-                  </div>
-                </div>
-                <div className="flex space-x-2">
-                  <Button onClick={handleCreateLoan}>Buat Pinjaman</Button>
-                  <Button variant="outline" onClick={() => setShowCreateForm(false)}>
-                    Batal
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          )}
 
           {/* Loans List */}
           <Card>
@@ -771,146 +693,15 @@ export function Loans() {
         </TabsContent>
       </Tabs>
 
-      {/* Loan Detail Modal */}
-      <Dialog open={showDetailModal} onOpenChange={setShowDetailModal}>
-        <DialogContent className="max-w-4xl">
-          <DialogHeader>
-            <DialogTitle>Detail Pinjaman</DialogTitle>
-          </DialogHeader>
-          {selectedLoan && (
-            <div className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="space-y-4">
-                  <h3 className="font-semibold">Informasi Pinjaman</h3>
-                  <div className="space-y-2">
-                    <div className="flex justify-between">
-                      <span className="text-sm text-muted-foreground">Kontrak:</span>
-                      <span className="text-sm font-medium">{selectedLoan.contract_number}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-sm text-muted-foreground">Nasabah:</span>
-                      <span className="text-sm font-medium">{selectedLoan.customer?.name}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-sm text-muted-foreground">Jumlah:</span>
-                      <span className="text-sm font-medium">{formatCurrency(selectedLoan.amount)}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-sm text-muted-foreground">Bunga:</span>
-                      <span className="text-sm font-medium">{selectedLoan.interest_rate}%</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-sm text-muted-foreground">Tenor:</span>
-                      <span className="text-sm font-medium">{selectedLoan.term} bulan</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-sm text-muted-foreground">Angsuran:</span>
-                      <span className="text-sm font-medium">{formatCurrency(selectedLoan.monthly_payment)}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-sm text-muted-foreground">Status:</span>
-                      {getStatusBadge(selectedLoan.status)}
-                    </div>
-                  </div>
-                </div>
-                
-                <div className="space-y-4">
-                  <h3 className="font-semibold">Jadwal Angsuran</h3>
-                  {selectedLoan.installments && selectedLoan.installments.length > 0 ? (
-                    <div className="max-h-60 overflow-y-auto space-y-2">
-                      {selectedLoan.installments.map((installment) => (
-                        <div key={installment.id} className="flex items-center justify-between p-2 border rounded text-sm">
-                          <div>
-                            <span className="font-medium">#{installment.number}</span>
-                            <p className="text-xs text-muted-foreground">
-                              {new Date(installment.due_date).toLocaleDateString('id-ID')}
-                            </p>
-                          </div>
-                          <div className="text-right">
-                            <p className="font-medium">{formatCurrency(installment.amount_due)}</p>
-                            {getInstallmentStatusBadge(installment.status)}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <p className="text-sm text-muted-foreground">Jadwal angsuran belum dibuat</p>
-                  )}
-                </div>
-              </div>
-            </div>
-          )}
-          <DialogFooter>
-            <Button onClick={() => setShowDetailModal(false)}>Tutup</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Edit Loan Modal */}
-      <Dialog open={showEditForm} onOpenChange={setShowEditForm}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Edit Pinjaman</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="edit_amount">Jumlah Pinjaman</Label>
-                <Input
-                  id="edit_amount"
-                  type="number"
-                  value={editLoanData.amount}
-                  onChange={(e) => setEditLoanData({ ...editLoanData, amount: parseInt(e.target.value) || 0 })}
-                />
-              </div>
-              <div>
-                <Label htmlFor="edit_interest_rate">Suku Bunga (%)</Label>
-                <Input
-                  id="edit_interest_rate"
-                  type="number"
-                  step="0.1"
-                  value={editLoanData.interest_rate}
-                  onChange={(e) => setEditLoanData({ ...editLoanData, interest_rate: parseFloat(e.target.value) || 0 })}
-                />
-              </div>
-              <div>
-                <Label htmlFor="edit_term">Jangka Waktu (bulan)</Label>
-                <Input
-                  id="edit_term"
-                  type="number"
-                  value={editLoanData.term}
-                  onChange={(e) => setEditLoanData({ ...editLoanData, term: parseInt(e.target.value) || 12 })}
-                />
-              </div>
-              <div>
-                <Label htmlFor="edit_status">Status</Label>
-                <select
-                  id="edit_status"
-                  value={editLoanData.status}
-                  onChange={(e) => setEditLoanData({ ...editLoanData, status: e.target.value })}
-                  className="w-full h-10 px-3 rounded-md border border-input bg-background"
-                >
-                  <option value="pending">Pending</option>
-                  <option value="approved">Disetujui</option>
-                  <option value="disbursed">Dicairkan</option>
-                  <option value="active">Aktif</option>
-                  <option value="completed">Selesai</option>
-                  <option value="defaulted">Bermasalah</option>
-                  <option value="cancelled">Dibatalkan</option>
-                </select>
-              </div>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowEditForm(false)}>
-              Batal
-            </Button>
-            <Button onClick={handleUpdateLoan}>
-              Simpan
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      {/* Loan Modal */}
+      <LoanModal
+        mode={modalMode}
+        loan={selectedLoan}
+        open={showLoanModal}
+        onOpenChange={setShowLoanModal}
+        onSubmit={modalMode === 'create' ? handleCreateLoan : handleUpdateLoan}
+        customers={customers}
+      />
 
       {/* Payment Modal */}
       <Dialog open={showPaymentModal} onOpenChange={setShowPaymentModal}>
