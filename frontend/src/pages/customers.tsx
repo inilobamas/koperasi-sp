@@ -135,9 +135,21 @@ export function Customers() {
   })
 
   const loadKaryawanReferralCode = async () => {
-    if (!isKaryawan() || !user?.id) return
+    console.log("loadKaryawanReferralCode called", { isKaryawan: isKaryawan(), userId: user?.id })
     
+    if (!isKaryawan()) {
+      console.log("User is not karyawan, skipping referral code load")
+      return
+    }
+    
+    if (!user?.id) {
+      console.log("No user ID available, skipping referral code load")
+      return
+    }
+    
+    console.log("Starting referral code loading...")
     setLoadingReferralCode(true)
+    
     try {
       const request = new services.ReferralCodeListRequest({
         page: 1,
@@ -146,24 +158,30 @@ export function Customers() {
         active: true,
       })
       
+      console.log("Making ListReferralCodes request:", request)
       const response = await ListReferralCodes(request)
       console.log("Referral codes response:", response)
       
-      if (response.success && response.data.referral_codes?.length > 0) {
+      if (response?.success && response.data?.referral_codes?.length > 0) {
         const code = response.data.referral_codes[0].code
         console.log("Found karyawan referral code:", code)
         setKaryawanReferralCode(code)
       } else {
-        console.log("No referral codes found for karyawan")
+        console.log("No referral codes found for karyawan", response)
+        setKaryawanReferralCode("")
         // Show a warning that the user needs a referral code to add customers
-        if (response.success && response.data.referral_codes?.length === 0) {
+        if (response?.success && response.data?.referral_codes?.length === 0) {
           showError("No Referral Code", "You don't have an active referral code. Please contact your administrator to get one.")
+        } else if (!response?.success) {
+          showError("Error", response?.message || "Failed to load referral codes")
         }
       }
     } catch (error) {
       console.error("Error loading karyawan referral code:", error)
-      showError("Error", "Failed to load your referral code")
+      setKaryawanReferralCode("")
+      showError("Error", "Failed to load your referral code: " + (error instanceof Error ? error.message : String(error)))
     } finally {
+      console.log("Finished loading referral code, setting loading to false")
       setLoadingReferralCode(false)
     }
   }
@@ -222,8 +240,24 @@ export function Customers() {
   }, [page, searchTerm, statusFilter, verifiedFilter, sortBy, sortOrder])
 
   useEffect(() => {
-    loadKaryawanReferralCode()
-  }, [user, isKaryawan])
+    // Only load referral code for karyawan users with valid user ID
+    if (isKaryawan() && user?.id && !karyawanReferralCode && !loadingReferralCode) {
+      console.log("Auto-loading referral code for karyawan user:", user.id)
+      loadKaryawanReferralCode()
+    }
+  }, [user?.id, user?.role]) // More specific dependencies
+
+  // Fallback: Reset loading state after 10 seconds if it gets stuck
+  useEffect(() => {
+    if (loadingReferralCode) {
+      const timeout = setTimeout(() => {
+        console.warn("Referral code loading timeout, resetting loading state")
+        setLoadingReferralCode(false)
+        showError("Timeout", "Loading referral code timed out. Please refresh the page or contact administrator.")
+      }, 10000)
+      return () => clearTimeout(timeout)
+    }
+  }, [loadingReferralCode, showError])
 
   // Client-side sorting function
   const sortCustomers = (customers: Customer[]) => {
@@ -484,7 +518,13 @@ export function Customers() {
           </p>
         </div>
         {(canViewAllCustomers() || isKaryawan()) && (
-          <Button onClick={() => setShowCreateForm(true)}>
+          <Button onClick={() => {
+            setShowCreateForm(true)
+            // Ensure referral code is loaded when opening form
+            if (isKaryawan() && !karyawanReferralCode && !loadingReferralCode) {
+              loadKaryawanReferralCode()
+            }
+          }}>
             <Plus className="mr-2 h-4 w-4" />
             Tambah Nasabah
           </Button>
@@ -694,9 +734,21 @@ export function Customers() {
                   className={isKaryawan() ? "bg-muted" : ""}
                 />
                 {isKaryawan() && (
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Nasabah baru akan otomatis menggunakan kode referral Anda
-                  </p>
+                  <div>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Nasabah baru akan otomatis menggunakan kode referral Anda
+                    </p>
+                    {!loadingReferralCode && !karyawanReferralCode && (
+                      <button 
+                        type="button"
+                        onClick={loadKaryawanReferralCode}
+                        className="text-xs text-gray-500 underline mt-1 hover:text-gray-700"
+                        title="Click only if referral code failed to load automatically"
+                      >
+                        🔄 Retry loading referral code
+                      </button>
+                    )}
+                  </div>
                 )}
               </div>
             </div>
@@ -743,9 +795,9 @@ export function Customers() {
             <div className="flex space-x-2">
               <Button 
                 onClick={handleCreateCustomer}
-                disabled={isKaryawan() && (!karyawanReferralCode || loadingReferralCode)}
+                disabled={isKaryawan() ? (!karyawanReferralCode || loadingReferralCode) : false}
               >
-                {loadingReferralCode ? "Loading..." : "Simpan"}
+                {isKaryawan() && loadingReferralCode ? "Loading..." : "Simpan"}
               </Button>
               <Button variant="outline" onClick={() => setShowCreateForm(false)}>
                 Batal
@@ -754,6 +806,11 @@ export function Customers() {
             {isKaryawan() && !karyawanReferralCode && !loadingReferralCode && (
               <p className="text-sm text-destructive mt-2">
                 ⚠️ You need an active referral code to add customers. Please contact your administrator.
+              </p>
+            )}
+            {isKaryawan() && loadingReferralCode && (
+              <p className="text-sm text-blue-600 mt-2">
+                🔄 Loading your referral code...
               </p>
             )}
           </CardContent>
