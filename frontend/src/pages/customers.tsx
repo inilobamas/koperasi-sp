@@ -35,6 +35,7 @@ import {
 import { formatCurrency } from "@/lib/utils"
 import { CreateCustomer, ListCustomers, GetCustomer, UpdateCustomer, DeleteCustomer, UploadDocument, ListDocuments } from "../../wailsjs/go/main/App"
 import { services } from "../../wailsjs/go/models"
+import { usePermissions } from "@/hooks/usePermissions"
 
 interface Customer {
   id: string
@@ -74,6 +75,7 @@ interface CustomerListResponse {
 
 export function Customers() {
   const { toasts, removeToast, showSuccess, showError } = useToast()
+  const { canViewAllCustomers, canManageCustomer, isKaryawan, user } = usePermissions()
   const [customers, setCustomers] = useState<Customer[]>([])
   const [total, setTotal] = useState(0)
   const [page, setPage] = useState(1)
@@ -134,6 +136,8 @@ export function Customers() {
         search: searchTerm,
         status: statusFilter,
         verified: verifiedFilter,
+        // If karyawan, only show their own customers (this would be filtered on backend)
+        owner_user_id: isKaryawan() ? user?.id : undefined,
       })
       
       const response = await ListCustomers(request)
@@ -370,13 +374,18 @@ export function Customers() {
         <div>
           <h2 className="text-2xl font-bold tracking-tight">Nasabah</h2>
           <p className="text-muted-foreground">
-            Kelola data nasabah koperasi
+            {isKaryawan() 
+              ? "Kelola data nasabah Anda" 
+              : "Kelola data nasabah koperasi"
+            }
           </p>
         </div>
-        <Button onClick={() => setShowCreateForm(true)}>
-          <Plus className="mr-2 h-4 w-4" />
-          Tambah Nasabah
-        </Button>
+        {canViewAllCustomers() && (
+          <Button onClick={() => setShowCreateForm(true)}>
+            <Plus className="mr-2 h-4 w-4" />
+            Tambah Nasabah
+          </Button>
+        )}
       </div>
 
       {/* Filters */}
@@ -445,6 +454,24 @@ export function Customers() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Role Info for Karyawan */}
+      {isKaryawan() && (
+        <Card className="border-blue-200 bg-blue-50">
+          <CardContent className="p-4">
+            <div className="flex items-center space-x-2">
+              <User className="h-5 w-5 text-blue-600" />
+              <div>
+                <h3 className="font-medium text-blue-800">Mode Karyawan</h3>
+                <p className="text-sm text-blue-600">
+                  Anda hanya dapat melihat dan mengelola nasabah yang Anda tangani. 
+                  Anda dapat melakukan verifikasi dokumen dan pemberian pinjaman untuk nasabah Anda.
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Create Customer Form */}
       {showCreateForm && (
@@ -645,13 +672,15 @@ export function Customers() {
                         >
                           <Eye className="h-4 w-4" />
                         </Button>
-                        <Button
-                          variant="outline"
-                          size="icon"
-                          onClick={() => handleEditCustomer(customer)}
-                        >
-                          <Edit className="h-4 w-4" />
-                        </Button>
+                        {canManageCustomer(customer.id) && (
+                          <Button
+                            variant="outline"
+                            size="icon"
+                            onClick={() => handleEditCustomer(customer)}
+                          >
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                        )}
                         <Button
                           variant="outline"
                           size="icon"
@@ -662,16 +691,18 @@ export function Customers() {
                         >
                           <Upload className="h-4 w-4" />
                         </Button>
-                        <Button
-                          variant="outline"
-                          size="icon"
-                          onClick={() => {
-                            setCustomerToDelete(customer.id)
-                            setShowDeleteConfirm(true)
-                          }}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
+                        {canViewAllCustomers() && (
+                          <Button
+                            variant="outline"
+                            size="icon"
+                            onClick={() => {
+                              setCustomerToDelete(customer.id)
+                              setShowDeleteConfirm(true)
+                            }}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        )}
                       </div>
                     </div>
                   </div>

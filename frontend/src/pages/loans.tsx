@@ -34,6 +34,7 @@ import {
 import { formatCurrency } from "@/lib/utils"
 import { CreateLoan, ListLoans, GetLoan, UpdateLoan, DisburseLoan, PayInstallment, GetOverdueInstallments } from "../../wailsjs/go/main/App"
 import { services } from "../../wailsjs/go/models"
+import { usePermissions } from "@/hooks/usePermissions"
 
 interface Loan {
   id: string

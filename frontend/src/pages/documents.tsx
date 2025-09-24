@@ -32,6 +32,7 @@ import {
 } from "lucide-react"
 import { ListDocuments, GetDocument, VerifyDocument, DeleteDocument, GetDocumentFile } from "../../wailsjs/go/main/App"
 import { services } from "../../wailsjs/go/models"
+import { usePermissions } from "@/hooks/usePermissions"
 
 interface Document {
   id: string

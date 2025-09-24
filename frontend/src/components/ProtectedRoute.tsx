@@ -1,5 +1,6 @@
 import { useAuth } from '@/contexts/AuthContext'
 import { LoginPage } from '@/pages/login'
+import { AccessDenied } from './AccessDenied'
 
 interface ProtectedRouteProps {
   children: React.ReactNode
@@ -25,16 +26,7 @@ export function ProtectedRoute({ children, allowedRoles }: ProtectedRouteProps) 
   }
 
   if (allowedRoles && !allowedRoles.includes(user.role)) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <h2 className="text-2xl font-bold text-red-600 mb-4">Akses Ditolak</h2>
-          <p className="text-muted-foreground">
-            Anda tidak memiliki izin untuk mengakses halaman ini.
-          </p>
-        </div>
-      </div>
-    )
+    return <AccessDenied />
   }
 
   return <>{children}</>

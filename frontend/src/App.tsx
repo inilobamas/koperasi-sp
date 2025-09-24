@@ -8,6 +8,8 @@ import { Customers } from "@/pages/customers"
 import { Referrals } from "@/pages/referrals"
 import { Documents } from "@/pages/documents"
 import { Loans } from "@/pages/loans"
+import { Profile } from "@/pages/profile"
+import { Settings } from "@/pages/settings"
 
 function App() {
   return (
@@ -23,7 +25,7 @@ function App() {
               <Route index element={<Dashboard />} />
             </Route>
             <Route path="/customers" element={
-              <ProtectedRoute allowedRoles={['superadmin', 'admin']}>
+              <ProtectedRoute allowedRoles={['superadmin', 'admin', 'karyawan']}>
                 <Layout title="Nasabah" description="Kelola data nasabah" />
               </ProtectedRoute>
             }>
@@ -37,14 +39,14 @@ function App() {
               <Route index element={<Referrals />} />
             </Route>
             <Route path="/documents" element={
-              <ProtectedRoute allowedRoles={['superadmin', 'admin']}>
+              <ProtectedRoute allowedRoles={['superadmin', 'admin', 'karyawan']}>
                 <Layout title="Dokumen" description="Verifikasi dokumen KTP" />
               </ProtectedRoute>
             }>
               <Route index element={<Documents />} />
             </Route>
             <Route path="/loans" element={
-              <ProtectedRoute allowedRoles={['superadmin', 'admin']}>
+              <ProtectedRoute allowedRoles={['superadmin', 'admin', 'karyawan']}>
                 <Layout title="Pinjaman" description="Kelola pinjaman dan angsuran" />
               </ProtectedRoute>
             }>
@@ -62,7 +64,14 @@ function App() {
                 <Layout title="Settings" description="Konfigurasi sistem" />
               </ProtectedRoute>
             }>
-              <Route index element={<div>Settings - Coming Soon</div>} />
+              <Route index element={<Settings />} />
+            </Route>
+            <Route path="/profile" element={
+              <ProtectedRoute allowedRoles={['superadmin', 'admin', 'karyawan']}>
+                <Layout title="Profile" description="Kelola informasi akun Anda" />
+              </ProtectedRoute>
+            }>
+              <Route index element={<Profile />} />
             </Route>
           </Routes>
         </BrowserRouter>

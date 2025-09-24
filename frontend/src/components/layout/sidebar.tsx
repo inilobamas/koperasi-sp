@@ -20,13 +20,13 @@ import { useAuth } from "@/contexts/AuthContext"
 import { Logout } from "../../../wailsjs/go/main/App"
 
 const navigation = [
-  { name: "Dashboard", href: "/", icon: BarChart3 },
-  { name: "Nasabah", href: "/customers", icon: Users },
-  { name: "Referral", href: "/referrals", icon: UserCheck },
-  { name: "Dokumen", href: "/documents", icon: FileText },
-  { name: "Pinjaman", href: "/loans", icon: CreditCard },
-  { name: "Notifikasi", href: "/notifications", icon: Bell },
-  { name: "Settings", href: "/settings", icon: Settings },
+  { name: "Dashboard", href: "/", icon: BarChart3, roles: ['superadmin', 'admin', 'karyawan'] },
+  { name: "Nasabah", href: "/customers", icon: Users, roles: ['superadmin', 'admin', 'karyawan'] },
+  { name: "Referral", href: "/referrals", icon: UserCheck, roles: ['superadmin', 'admin'] },
+  { name: "Dokumen", href: "/documents", icon: FileText, roles: ['superadmin', 'admin', 'karyawan'] },
+  { name: "Pinjaman", href: "/loans", icon: CreditCard, roles: ['superadmin', 'admin', 'karyawan'] },
+  { name: "Notifikasi", href: "/notifications", icon: Bell, roles: ['superadmin', 'admin', 'karyawan'] },
+  { name: "Settings", href: "/settings", icon: Settings, roles: ['superadmin'] },
 ]
 
 interface SidebarProps {
@@ -77,25 +77,27 @@ export function Sidebar({ className }: SidebarProps) {
 
       {/* Navigation */}
       <nav className="flex-1 p-4 space-y-2">
-        {navigation.map((item) => (
-          <NavLink
-            key={item.name}
-            to={item.href}
-            className={({ isActive }) =>
-              cn(
-                "flex items-center space-x-3 px-3 py-2 rounded-md text-sm font-medium transition-colors",
-                isActive
-                  ? "bg-primary text-primary-foreground"
-                  : "text-muted-foreground hover:text-foreground hover:bg-accent",
-                collapsed && "justify-center"
-              )
-            }
-            title={collapsed ? item.name : undefined}
-          >
-            <item.icon className="h-5 w-5 flex-shrink-0" />
-            {!collapsed && <span>{item.name}</span>}
-          </NavLink>
-        ))}
+        {navigation
+          .filter((item) => user && item.roles.includes(user.role))
+          .map((item) => (
+            <NavLink
+              key={item.name}
+              to={item.href}
+              className={({ isActive }) =>
+                cn(
+                  "flex items-center space-x-3 px-3 py-2 rounded-md text-sm font-medium transition-colors",
+                  isActive
+                    ? "bg-primary text-primary-foreground"
+                    : "text-muted-foreground hover:text-foreground hover:bg-accent",
+                  collapsed && "justify-center"
+                )
+              }
+              title={collapsed ? item.name : undefined}
+            >
+              <item.icon className="h-5 w-5 flex-shrink-0" />
+              {!collapsed && <span>{item.name}</span>}
+            </NavLink>
+          ))}
       </nav>
 
       {/* User Info & Footer */}
