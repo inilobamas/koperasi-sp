@@ -98,6 +98,7 @@ export function Customers() {
   const [customerToDelete, setCustomerToDelete] = useState<string | null>(null)
   const [showDocumentUpload, setShowDocumentUpload] = useState(false)
   const [karyawanReferralCode, setKaryawanReferralCode] = useState("")
+  const [loadingReferralCode, setLoadingReferralCode] = useState(false)
   
   const [editFormData, setEditFormData] = useState({
     name: "",
@@ -136,6 +137,7 @@ export function Customers() {
   const loadKaryawanReferralCode = async () => {
     if (!isKaryawan() || !user?.id) return
     
+    setLoadingReferralCode(true)
     try {
       const request = new services.ReferralCodeListRequest({
         page: 1,
@@ -145,11 +147,24 @@ export function Customers() {
       })
       
       const response = await ListReferralCodes(request)
+      console.log("Referral codes response:", response)
+      
       if (response.success && response.data.referral_codes?.length > 0) {
-        setKaryawanReferralCode(response.data.referral_codes[0].code)
+        const code = response.data.referral_codes[0].code
+        console.log("Found karyawan referral code:", code)
+        setKaryawanReferralCode(code)
+      } else {
+        console.log("No referral codes found for karyawan")
+        // Show a warning that the user needs a referral code to add customers
+        if (response.success && response.data.referral_codes?.length === 0) {
+          showError("No Referral Code", "You don't have an active referral code. Please contact your administrator to get one.")
+        }
       }
     } catch (error) {
       console.error("Error loading karyawan referral code:", error)
+      showError("Error", "Failed to load your referral code")
+    } finally {
+      setLoadingReferralCode(false)
     }
   }
 
@@ -246,14 +261,33 @@ export function Customers() {
 
   const handleCreateCustomer = async () => {
     try {
+      // Validate required fields
+      if (!newCustomer.nik || !newCustomer.name || !newCustomer.phone) {
+        showError("Field Required", "NIK, Name, and Phone are required fields")
+        return
+      }
+
+      // For karyawan, ensure referral code is available
+      if (isKaryawan() && !karyawanReferralCode) {
+        showError("Referral Code Missing", "Please wait for your referral code to load, or contact admin if you don't have one")
+        return
+      }
+
+      const referralCodeToUse = isKaryawan() ? karyawanReferralCode : newCustomer.referral_code
+      
+      console.log("Creating customer with referral code:", referralCodeToUse)
+      
       const request = new services.CustomerCreateRequest({
         ...newCustomer,
-        referral_code: isKaryawan() ? karyawanReferralCode : newCustomer.referral_code,
+        referral_code: referralCodeToUse,
         date_of_birth: new Date(newCustomer.date_of_birth),
       })
       
       const response = await CreateCustomer(request)
+      console.log("Create customer response:", response)
+      
       if (response.success) {
+        showSuccess("Customer Created", "Nasabah berhasil ditambahkan!")
         setShowCreateForm(false)
         setNewCustomer({
           nik: "",
@@ -270,9 +304,12 @@ export function Customers() {
           referral_code: "",
         })
         loadCustomers()
+      } else {
+        showError("Create Failed", response.message || "Failed to create customer")
       }
     } catch (error) {
       console.error("Error creating customer:", error)
+      showError("Error", "An unexpected error occurred while creating the customer")
     }
   }
 
@@ -652,7 +689,7 @@ export function Customers() {
                   id="referral_code"
                   value={isKaryawan() ? karyawanReferralCode : newCustomer.referral_code}
                   onChange={(e) => !isKaryawan() && setNewCustomer({ ...newCustomer, referral_code: e.target.value })}
-                  placeholder={isKaryawan() ? "Memuat kode referral..." : "KODE123"}
+                  placeholder={isKaryawan() ? (loadingReferralCode ? "Loading..." : (karyawanReferralCode ? karyawanReferralCode : "No referral code found")) : "KODE123"}
                   disabled={isKaryawan()}
                   className={isKaryawan() ? "bg-muted" : ""}
                 />
@@ -704,11 +741,21 @@ export function Customers() {
               </div>
             </div>
             <div className="flex space-x-2">
-              <Button onClick={handleCreateCustomer}>Simpan</Button>
+              <Button 
+                onClick={handleCreateCustomer}
+                disabled={isKaryawan() && (!karyawanReferralCode || loadingReferralCode)}
+              >
+                {loadingReferralCode ? "Loading..." : "Simpan"}
+              </Button>
               <Button variant="outline" onClick={() => setShowCreateForm(false)}>
                 Batal
               </Button>
             </div>
+            {isKaryawan() && !karyawanReferralCode && !loadingReferralCode && (
+              <p className="text-sm text-destructive mt-2">
+                ⚠️ You need an active referral code to add customers. Please contact your administrator.
+              </p>
+            )}
           </CardContent>
         </Card>
       )}
