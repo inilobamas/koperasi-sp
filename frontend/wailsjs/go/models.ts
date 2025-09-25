@@ -119,20 +119,23 @@ export namespace services {
 	        this.referral_code = source["referral_code"];
 	    }
 	
-		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		convertValues(a: any, classType: any, asMap: boolean = false): any {
 		    if (!a) {
 		        return a;
 		    }
+		    if (!classType) {
+		        return a;
+		    }
 		    if (a.slice && a.map) {
-		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		        return (a as any[]).map(elem => this.convertValues(elem, classType));
 		    } else if ("object" === typeof a) {
 		        if (asMap) {
 		            for (const key of Object.keys(a)) {
-		                a[key] = new classs(a[key]);
+		                a[key] = new classType(a[key]);
 		            }
 		            return a;
 		        }
-		        return new classs(a);
+		        return new classType(a);
 		    }
 		    return a;
 		}
@@ -192,20 +195,23 @@ export namespace services {
 	        this.status = source["status"];
 	    }
 	
-		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		convertValues(a: any, classType: any, asMap: boolean = false): any {
 		    if (!a) {
 		        return a;
 		    }
+		    if (!classType) {
+		        return a;
+		    }
 		    if (a.slice && a.map) {
-		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		        return (a as any[]).map(elem => this.convertValues(elem, classType));
 		    } else if ("object" === typeof a) {
 		        if (asMap) {
 		            for (const key of Object.keys(a)) {
-		                a[key] = new classs(a[key]);
+		                a[key] = new classType(a[key]);
 		            }
 		            return a;
 		        }
-		        return new classs(a);
+		        return new classType(a);
 		    }
 		    return a;
 		}
@@ -265,20 +271,23 @@ export namespace services {
 	        this.payment_date = this.convertValues(source["payment_date"], null);
 	    }
 	
-		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		convertValues(a: any, classType: any, asMap: boolean = false): any {
 		    if (!a) {
 		        return a;
 		    }
+		    if (!classType) {
+		        return a;
+		    }
 		    if (a.slice && a.map) {
-		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		        return (a as any[]).map(elem => this.convertValues(elem, classType));
 		    } else if ("object" === typeof a) {
 		        if (asMap) {
 		            for (const key of Object.keys(a)) {
-		                a[key] = new classs(a[key]);
+		                a[key] = new classType(a[key]);
 		            }
 		            return a;
 		        }
-		        return new classs(a);
+		        return new classType(a);
 		    }
 		    return a;
 		}
@@ -386,20 +395,23 @@ export namespace services {
 	        this.expires_at = this.convertValues(source["expires_at"], null);
 	    }
 	
-		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		convertValues(a: any, classType: any, asMap: boolean = false): any {
 		    if (!a) {
 		        return a;
 		    }
+		    if (!classType) {
+		        return a;
+		    }
 		    if (a.slice && a.map) {
-		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		        return (a as any[]).map(elem => this.convertValues(elem, classType));
 		    } else if ("object" === typeof a) {
 		        if (asMap) {
 		            for (const key of Object.keys(a)) {
-		                a[key] = new classs(a[key]);
+		                a[key] = new classType(a[key]);
 		            }
 		            return a;
 		        }
-		        return new classs(a);
+		        return new classType(a);
 		    }
 		    return a;
 		}
@@ -439,20 +451,23 @@ export namespace services {
 	        this.expires_at = this.convertValues(source["expires_at"], null);
 	    }
 	
-		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		convertValues(a: any, classType: any, asMap: boolean = false): any {
 		    if (!a) {
 		        return a;
 		    }
+		    if (!classType) {
+		        return a;
+		    }
 		    if (a.slice && a.map) {
-		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		        return (a as any[]).map(elem => this.convertValues(elem, classType));
 		    } else if ("object" === typeof a) {
 		        if (asMap) {
 		            for (const key of Object.keys(a)) {
-		                a[key] = new classs(a[key]);
+		                a[key] = new classType(a[key]);
 		            }
 		            return a;
 		        }
-		        return new classs(a);
+		        return new classType(a);
 		    }
 		    return a;
 		}
@@ -478,20 +493,23 @@ export namespace services {
 	        this.scheduled_for = this.convertValues(source["scheduled_for"], null);
 	    }
 	
-		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		convertValues(a: any, classType: any, asMap: boolean = false): any {
 		    if (!a) {
 		        return a;
 		    }
+		    if (!classType) {
+		        return a;
+		    }
 		    if (a.slice && a.map) {
-		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		        return (a as any[]).map(elem => this.convertValues(elem, classType));
 		    } else if ("object" === typeof a) {
 		        if (asMap) {
 		            for (const key of Object.keys(a)) {
-		                a[key] = new classs(a[key]);
+		                a[key] = new classType(a[key]);
 		            }
 		            return a;
 		        }
-		        return new classs(a);
+		        return new classType(a);
 		    }
 		    return a;
 		}
