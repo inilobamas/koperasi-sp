@@ -195,7 +195,7 @@ export function Customers() {
         search: searchTerm,
         status: statusFilter,
         verified: verifiedFilter,
-        // If karyawan, only show customers from their referral codes
+        // Only filter by owner_user_id for karyawan role
         owner_user_id: isKaryawan() ? user?.id || "" : "",
       })
       

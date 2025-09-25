@@ -364,9 +364,9 @@ func (s *CustomerService) ListCustomers(req CustomerListRequest) (*CustomerListR
 		args = append(args, *req.Verified)
 	}
 
-	// Add owner user ID filter (for karyawan to see only their customers)
+	// Add owner user ID filter (for karyawan to see only their customers, but superadmin/admin see all)
 	if req.OwnerUserID != "" {
-		queryBuilder.WriteString(" AND rc.owner_user_id = ?")
+		queryBuilder.WriteString(" AND (rc.owner_user_id = ? OR c.referral_code_id IS NULL)")
 		args = append(args, req.OwnerUserID)
 	}
 
@@ -441,7 +441,7 @@ func (s *CustomerService) ListCustomers(req CustomerListRequest) (*CustomerListR
 	}
 
 	if req.OwnerUserID != "" {
-		countQuery.WriteString(" AND rc.owner_user_id = ?")
+		countQuery.WriteString(" AND (rc.owner_user_id = ? OR c.referral_code_id IS NULL)")
 		countArgs = append(countArgs, req.OwnerUserID)
 	}
 
