@@ -339,41 +339,23 @@ export function Customers() {
       // Ensure date is properly formatted
       const dateOfBirth = newCustomer.date_of_birth ? new Date(newCustomer.date_of_birth) : new Date()
       
-      // Create request object - handle potential constructor issues
-      let request
-      try {
-        request = new services.CustomerCreateRequest({
-          nik: nikTrimmed,
-          name: nameTrimmed,
-          email: newCustomer.email?.trim() || "",
-          phone: phoneTrimmed,
-          date_of_birth: dateOfBirth,
-          address: newCustomer.address?.trim() || "",
-          city: newCustomer.city?.trim() || "",
-          province: newCustomer.province?.trim() || "",
-          postal_code: newCustomer.postal_code?.trim() || "",
-          occupation: newCustomer.occupation?.trim() || "",
-          monthly_income: newCustomer.monthly_income || 0,
-          referral_code: referralCodeToUse || "",
-        })
-      } catch (constructorError) {
-        console.error("Constructor error:", constructorError)
-        // Fallback: create object manually
-        request = {
-          nik: nikTrimmed,
-          name: nameTrimmed,
-          email: newCustomer.email?.trim() || "",
-          phone: phoneTrimmed,
-          date_of_birth: dateOfBirth,
-          address: newCustomer.address?.trim() || "",
-          city: newCustomer.city?.trim() || "",
-          province: newCustomer.province?.trim() || "",
-          postal_code: newCustomer.postal_code?.trim() || "",
-          occupation: newCustomer.occupation?.trim() || "",
-          monthly_income: newCustomer.monthly_income || 0,
-          referral_code: referralCodeToUse || "",
-        }
+      // Create request object using createFrom static method to avoid constructor issues
+      const requestData = {
+        nik: nikTrimmed,
+        name: nameTrimmed,
+        email: newCustomer.email?.trim() || "",
+        phone: phoneTrimmed,
+        date_of_birth: dateOfBirth,
+        address: newCustomer.address?.trim() || "",
+        city: newCustomer.city?.trim() || "",
+        province: newCustomer.province?.trim() || "",
+        postal_code: newCustomer.postal_code?.trim() || "",
+        occupation: newCustomer.occupation?.trim() || "",
+        monthly_income: newCustomer.monthly_income || 0,
+        referral_code: referralCodeToUse || "",
       }
+      
+      const request = services.CustomerCreateRequest.createFrom(requestData)
       
       console.log("Customer create request:", request)
       
