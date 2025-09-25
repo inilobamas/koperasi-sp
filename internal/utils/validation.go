@@ -76,6 +76,33 @@ func ValidateNIK(nik string) error {
 	return nil
 }
 
+// ExtractDateFromNIK extracts the date of birth from NIK for debugging
+func ExtractDateFromNIK(nik string) (day, month, year int, isFemale bool, err error) {
+	nik = strings.ReplaceAll(nik, " ", "")
+	if len(nik) != 16 {
+		return 0, 0, 0, false, fmt.Errorf("NIK must be 16 digits")
+	}
+	
+	day, _ = strconv.Atoi(nik[6:8])
+	month, _ = strconv.Atoi(nik[8:10])
+	year, _ = strconv.Atoi(nik[10:12])
+	
+	// Adjust for female (day > 40)
+	if day > 40 {
+		day -= 40
+		isFemale = true
+	}
+	
+	// Convert 2-digit year to 4-digit
+	if year <= 30 {
+		year = 2000 + year
+	} else {
+		year = 1900 + year
+	}
+	
+	return day, month, year, isFemale, nil
+}
+
 // ValidateIndonesianPhone validates Indonesian phone numbers
 func ValidateIndonesianPhone(phone string) error {
 	// Remove any whitespace, dashes, or dots
