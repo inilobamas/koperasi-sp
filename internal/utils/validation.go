@@ -35,27 +35,42 @@ func ValidateNIK(nik string) error {
 	month, _ := strconv.Atoi(nik[8:10])
 	year, _ := strconv.Atoi(nik[10:12])
 	
+	// Store original day for better error messages
+	originalDay := day
+	
 	// Adjust for female (day > 40)
+	isFemale := false
 	if day > 40 {
 		day -= 40
+		isFemale = true
 	}
 	
-	// Validate date ranges
+	// Validate date ranges with better error messages
 	if day < 1 || day > 31 {
-		return fmt.Errorf("tanggal lahir dalam NIK tidak valid")
+		gender := "laki-laki"
+		if isFemale {
+			gender = "perempuan"
+		}
+		return fmt.Errorf("tanggal lahir dalam NIK tidak valid (tanggal: %d, untuk %s). NIK: %s", originalDay, gender, nik)
 	}
 	if month < 1 || month > 12 {
-		return fmt.Errorf("bulan lahir dalam NIK tidak valid")
+		return fmt.Errorf("bulan lahir dalam NIK tidak valid (bulan: %02d). NIK: %s", month, nik)
+	}
+	
+	// Additional validation for days per month
+	daysInMonth := []int{31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31} // Feb has 29 to account for leap years
+	if month >= 1 && month <= 12 && day > daysInMonth[month-1] {
+		return fmt.Errorf("tanggal %d tidak valid untuk bulan %02d. NIK: %s", day, month, nik)
 	}
 	
 	// Year validation (assuming 2-digit year, 00-99)
 	currentYear := 2024
 	fullYear := 1900 + year
-	if year < 30 { // Assume years 00-29 are 2000-2029
+	if year <= 30 { // Assume years 00-30 are 2000-2030
 		fullYear = 2000 + year
 	}
 	if fullYear < 1900 || fullYear > currentYear {
-		return fmt.Errorf("tahun lahir dalam NIK tidak valid")
+		return fmt.Errorf("tahun lahir dalam NIK tidak valid (tahun: %d). NIK: %s", fullYear, nik)
 	}
 	
 	return nil
