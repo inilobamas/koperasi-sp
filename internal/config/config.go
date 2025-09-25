@@ -47,9 +47,10 @@ type SecurityConfig struct {
 }
 
 type AppConfig struct {
-	Name     string `json:"name"`
-	Version  string `json:"version"`
-	Timezone string `json:"timezone"`
+	Name            string `json:"name"`
+	Version         string `json:"version"`
+	Timezone        string `json:"timezone"`
+	DevelopmentMode bool   `json:"development_mode"`
 }
 
 func Load() (*Config, error) {
@@ -112,9 +113,10 @@ func getDefaultConfig() *Config {
 			EncryptionKey: generateEncryptionKey(),
 		},
 		App: AppConfig{
-			Name:     "Koperasi App",
-			Version:  "1.0.0",
-			Timezone: "Asia/Jakarta",
+			Name:            "Koperasi App",
+			Version:         "1.0.0",
+			Timezone:        "Asia/Jakarta",
+			DevelopmentMode: true,
 		},
 	}
 }
