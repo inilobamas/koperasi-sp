@@ -72,14 +72,24 @@ type CustomerListResponse struct {
 }
 
 func (s *CustomerService) CreateCustomer(req CustomerCreateRequest) (*models.Customer, error) {
+	// Debug logging
+	fmt.Printf("DEBUG - Customer create request received:\n")
+	fmt.Printf("  NIK: '%s' (len=%d)\n", req.NIK, len(req.NIK))
+	fmt.Printf("  Name: '%s' (len=%d)\n", req.Name, len(req.Name))
+	fmt.Printf("  Phone: '%s' (len=%d)\n", req.Phone, len(req.Phone))
+	fmt.Printf("  Email: '%s'\n", req.Email)
+	
 	// Validate required fields
 	if err := utils.ValidateRequired(req.NIK, "NIK"); err != nil {
+		fmt.Printf("DEBUG - NIK validation failed: %v\n", err)
 		return nil, err
 	}
 	if err := utils.ValidateRequired(req.Name, "Nama"); err != nil {
+		fmt.Printf("DEBUG - Name validation failed: %v\n", err)
 		return nil, err
 	}
 	if err := utils.ValidateRequired(req.Phone, "Nomor Telepon"); err != nil {
+		fmt.Printf("DEBUG - Phone validation failed: %v\n", err)
 		return nil, err
 	}
 

@@ -298,8 +298,19 @@ export function Customers() {
     let referralCodeToUse = ""
     
     try {
-      // Validate required fields
-      if (!newCustomer.nik || !newCustomer.name || !newCustomer.phone) {
+      // Debug logging
+      console.log("Form validation - checking fields:")
+      console.log("NIK:", `'${newCustomer.nik}'`, "length:", newCustomer.nik?.length)
+      console.log("Name:", `'${newCustomer.name}'`, "length:", newCustomer.name?.length)
+      console.log("Phone:", `'${newCustomer.phone}'`, "length:", newCustomer.phone?.length)
+      console.log("Date of birth:", newCustomer.date_of_birth)
+      
+      // Validate required fields (trim whitespace)
+      const nikTrimmed = newCustomer.nik?.trim()
+      const nameTrimmed = newCustomer.name?.trim()
+      const phoneTrimmed = newCustomer.phone?.trim()
+      
+      if (!nikTrimmed || !nameTrimmed || !phoneTrimmed) {
         showError("Field Required", "NIK, Name, and Phone are required fields")
         return
       }
@@ -327,16 +338,16 @@ export function Customers() {
       const dateOfBirth = newCustomer.date_of_birth ? new Date(newCustomer.date_of_birth) : new Date()
       
       const request = new services.CustomerCreateRequest({
-        nik: newCustomer.nik,
-        name: newCustomer.name,
-        email: newCustomer.email || "",
-        phone: newCustomer.phone,
+        nik: nikTrimmed,
+        name: nameTrimmed,
+        email: newCustomer.email?.trim() || "",
+        phone: phoneTrimmed,
         date_of_birth: dateOfBirth,
-        address: newCustomer.address || "",
-        city: newCustomer.city || "",
-        province: newCustomer.province || "",
-        postal_code: newCustomer.postal_code || "",
-        occupation: newCustomer.occupation || "",
+        address: newCustomer.address?.trim() || "",
+        city: newCustomer.city?.trim() || "",
+        province: newCustomer.province?.trim() || "",
+        postal_code: newCustomer.postal_code?.trim() || "",
+        occupation: newCustomer.occupation?.trim() || "",
         monthly_income: newCustomer.monthly_income || 0,
         referral_code: referralCodeToUse || "",
       })
