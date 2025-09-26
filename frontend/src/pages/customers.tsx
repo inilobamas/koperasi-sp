@@ -739,176 +739,6 @@ export function Customers() {
         </Card>
       )}
 
-      {/* Create Customer Form */}
-      {showCreateForm && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Tambah Nasabah Baru</CardTitle>
-            <CardDescription>Masukkan informasi nasabah baru</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="nik">NIK</Label>
-                <Input
-                  id="nik"
-                  value={newCustomer.nik}
-                  onChange={(e) => setNewCustomer({ ...newCustomer, nik: e.target.value })}
-                  placeholder="1234567890123456"
-                />
-              </div>
-              <div>
-                <Label htmlFor="name">Nama Lengkap</Label>
-                <Input
-                  id="name"
-                  value={newCustomer.name}
-                  onChange={(e) => setNewCustomer({ ...newCustomer, name: e.target.value })}
-                  placeholder="Masukkan nama lengkap"
-                />
-              </div>
-              <div>
-                <Label htmlFor="email">Email</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  value={newCustomer.email}
-                  onChange={(e) => setNewCustomer({ ...newCustomer, email: e.target.value })}
-                  placeholder="email@example.com"
-                />
-              </div>
-              <div>
-                <Label htmlFor="phone">Nomor Telepon</Label>
-                <Input
-                  id="phone"
-                  value={newCustomer.phone}
-                  onChange={(e) => setNewCustomer({ ...newCustomer, phone: e.target.value })}
-                  placeholder="08123456789"
-                />
-              </div>
-              <div>
-                <Label htmlFor="date_of_birth">Tanggal Lahir</Label>
-                <Input
-                  id="date_of_birth"
-                  type="date"
-                  value={newCustomer.date_of_birth}
-                  onChange={(e) => setNewCustomer({ ...newCustomer, date_of_birth: e.target.value })}
-                />
-              </div>
-              <div>
-                <Label htmlFor="occupation">Pekerjaan</Label>
-                <Input
-                  id="occupation"
-                  value={newCustomer.occupation}
-                  onChange={(e) => setNewCustomer({ ...newCustomer, occupation: e.target.value })}
-                  placeholder="Masukkan pekerjaan"
-                />
-              </div>
-              <div>
-                <Label htmlFor="monthly_income">Penghasilan Bulanan</Label>
-                <Input
-                  id="monthly_income"
-                  type="number"
-                  value={newCustomer.monthly_income}
-                  onChange={(e) => setNewCustomer({ ...newCustomer, monthly_income: parseInt(e.target.value) || 0 })}
-                  placeholder="5000000"
-                />
-              </div>
-              <div>
-                <Label htmlFor="referral_code">
-                  Kode Referral {!isKaryawan() && "(Opsional)"}
-                  {isKaryawan() && " (Otomatis)"}
-                </Label>
-                <Input
-                  id="referral_code"
-                  value={isKaryawan() ? karyawanReferralCode : newCustomer.referral_code}
-                  onChange={(e) => !isKaryawan() && setNewCustomer({ ...newCustomer, referral_code: e.target.value })}
-                  placeholder={isKaryawan() ? (loadingReferralCode ? "Loading..." : (karyawanReferralCode ? karyawanReferralCode : "No referral code found")) : "KODE123"}
-                  disabled={isKaryawan()}
-                  className={isKaryawan() ? "bg-muted" : ""}
-                />
-                {isKaryawan() && (
-                  <div>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      Nasabah baru akan otomatis menggunakan kode referral Anda
-                    </p>
-                    {!loadingReferralCode && !karyawanReferralCode && (
-                      <button 
-                        type="button"
-                        onClick={loadKaryawanReferralCode}
-                        className="text-xs text-gray-500 underline mt-1 hover:text-gray-700"
-                        title="Click only if referral code failed to load automatically"
-                      >
-                        🔄 Retry loading referral code
-                      </button>
-                    )}
-                  </div>
-                )}
-              </div>
-            </div>
-            <div className="space-y-4">
-              <div>
-                <Label htmlFor="address">Alamat Lengkap</Label>
-                <Input
-                  id="address"
-                  value={newCustomer.address}
-                  onChange={(e) => setNewCustomer({ ...newCustomer, address: e.target.value })}
-                  placeholder="Jl. Contoh No. 123, RT/RW 01/02"
-                />
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div>
-                  <Label htmlFor="city">Kota/Kabupaten</Label>
-                  <Input
-                    id="city"
-                    value={newCustomer.city}
-                    onChange={(e) => setNewCustomer({ ...newCustomer, city: e.target.value })}
-                    placeholder="Jakarta"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="province">Provinsi</Label>
-                  <Input
-                    id="province"
-                    value={newCustomer.province}
-                    onChange={(e) => setNewCustomer({ ...newCustomer, province: e.target.value })}
-                    placeholder="DKI Jakarta"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="postal_code">Kode Pos</Label>
-                  <Input
-                    id="postal_code"
-                    value={newCustomer.postal_code}
-                    onChange={(e) => setNewCustomer({ ...newCustomer, postal_code: e.target.value })}
-                    placeholder="12345"
-                  />
-                </div>
-              </div>
-            </div>
-            <div className="flex space-x-2">
-              <Button 
-                onClick={handleCreateCustomer}
-                disabled={isKaryawan() ? (!karyawanReferralCode || loadingReferralCode) : false}
-              >
-                {isKaryawan() && loadingReferralCode ? "Loading..." : "Simpan"}
-              </Button>
-              <Button variant="outline" onClick={() => setShowCreateForm(false)}>
-                Batal
-              </Button>
-            </div>
-            {isKaryawan() && !karyawanReferralCode && !loadingReferralCode && (
-              <p className="text-sm text-destructive mt-2">
-                ⚠️ You need an active referral code to add customers. Please contact your administrator.
-              </p>
-            )}
-            {isKaryawan() && loadingReferralCode && (
-              <p className="text-sm text-blue-600 mt-2">
-                🔄 Loading your referral code...
-              </p>
-            )}
-          </CardContent>
-        </Card>
-      )}
 
       {/* Customer List */}
       <Card>
@@ -1473,6 +1303,223 @@ export function Customers() {
             >
               <Upload className="mr-2 h-4 w-4" />
               Upload
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Create Customer Modal */}
+      <Dialog open={showCreateForm} onOpenChange={setShowCreateForm}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden">
+          <DialogHeader>
+            <DialogTitle className="flex items-center space-x-2">
+              <User className="h-5 w-5" />
+              <span>Tambah Nasabah Baru</span>
+            </DialogTitle>
+            <DialogDescription>
+              Masukkan informasi lengkap nasabah baru
+            </DialogDescription>
+          </DialogHeader>
+          <div className="overflow-y-auto flex-1 px-1">
+            <Tabs defaultValue="personal" className="w-full">
+              <TabsList className="grid w-full grid-cols-3">
+                <TabsTrigger value="personal">Data Personal</TabsTrigger>
+                <TabsTrigger value="address">Alamat</TabsTrigger>
+                <TabsTrigger value="other">Lainnya</TabsTrigger>
+              </TabsList>
+              
+              <TabsContent value="personal" className="mt-6">
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-lg">Informasi Personal</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <Label htmlFor="create_nik">NIK *</Label>
+                        <Input
+                          id="create_nik"
+                          value={newCustomer.nik}
+                          onChange={(e) => setNewCustomer({ ...newCustomer, nik: e.target.value })}
+                          placeholder="1234567890123456"
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="create_name">Nama Lengkap *</Label>
+                        <Input
+                          id="create_name"
+                          value={newCustomer.name}
+                          onChange={(e) => setNewCustomer({ ...newCustomer, name: e.target.value })}
+                          placeholder="Masukkan nama lengkap"
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="create_phone">Nomor Telepon *</Label>
+                        <Input
+                          id="create_phone"
+                          value={newCustomer.phone}
+                          onChange={(e) => setNewCustomer({ ...newCustomer, phone: e.target.value })}
+                          placeholder="08123456789"
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="create_email">Email</Label>
+                        <Input
+                          id="create_email"
+                          type="email"
+                          value={newCustomer.email}
+                          onChange={(e) => setNewCustomer({ ...newCustomer, email: e.target.value })}
+                          placeholder="email@example.com"
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="create_date_of_birth">Tanggal Lahir *</Label>
+                        <Input
+                          id="create_date_of_birth"
+                          type="date"
+                          value={newCustomer.date_of_birth}
+                          onChange={(e) => setNewCustomer({ ...newCustomer, date_of_birth: e.target.value })}
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="create_occupation">Pekerjaan</Label>
+                        <Input
+                          id="create_occupation"
+                          value={newCustomer.occupation}
+                          onChange={(e) => setNewCustomer({ ...newCustomer, occupation: e.target.value })}
+                          placeholder="Masukkan pekerjaan"
+                        />
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </TabsContent>
+              
+              <TabsContent value="address" className="mt-6">
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-lg">Alamat Lengkap</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div>
+                      <Label htmlFor="create_address">Alamat Lengkap</Label>
+                      <Input
+                        id="create_address"
+                        value={newCustomer.address}
+                        onChange={(e) => setNewCustomer({ ...newCustomer, address: e.target.value })}
+                        placeholder="Jl. Contoh No. 123, RT/RW 01/02"
+                      />
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div>
+                        <Label htmlFor="create_city">Kota/Kabupaten</Label>
+                        <Input
+                          id="create_city"
+                          value={newCustomer.city}
+                          onChange={(e) => setNewCustomer({ ...newCustomer, city: e.target.value })}
+                          placeholder="Jakarta"
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="create_province">Provinsi</Label>
+                        <Input
+                          id="create_province"
+                          value={newCustomer.province}
+                          onChange={(e) => setNewCustomer({ ...newCustomer, province: e.target.value })}
+                          placeholder="DKI Jakarta"
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="create_postal_code">Kode Pos</Label>
+                        <Input
+                          id="create_postal_code"
+                          value={newCustomer.postal_code}
+                          onChange={(e) => setNewCustomer({ ...newCustomer, postal_code: e.target.value })}
+                          placeholder="12345"
+                        />
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </TabsContent>
+              
+              <TabsContent value="other" className="mt-6">
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-lg">Informasi Lainnya</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <Label htmlFor="create_monthly_income">Penghasilan Bulanan</Label>
+                        <Input
+                          id="create_monthly_income"
+                          type="number"
+                          value={newCustomer.monthly_income}
+                          onChange={(e) => setNewCustomer({ ...newCustomer, monthly_income: parseInt(e.target.value) || 0 })}
+                          placeholder="5000000"
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="create_referral_code">
+                          Kode Referral {!isKaryawan() && "(Opsional)"}
+                          {isKaryawan() && " (Otomatis)"}
+                        </Label>
+                        <Input
+                          id="create_referral_code"
+                          value={isKaryawan() ? karyawanReferralCode : newCustomer.referral_code}
+                          onChange={(e) => !isKaryawan() && setNewCustomer({ ...newCustomer, referral_code: e.target.value })}
+                          placeholder={isKaryawan() ? (loadingReferralCode ? "Loading..." : (karyawanReferralCode ? karyawanReferralCode : "No referral code found")) : "KODE123"}
+                          disabled={isKaryawan()}
+                          className={isKaryawan() ? "bg-muted" : ""}
+                        />
+                        {isKaryawan() && (
+                          <div className="mt-2">
+                            <p className="text-xs text-muted-foreground">
+                              Nasabah baru akan otomatis menggunakan kode referral Anda
+                            </p>
+                            {!loadingReferralCode && !karyawanReferralCode && (
+                              <button 
+                                type="button"
+                                onClick={loadKaryawanReferralCode}
+                                className="text-xs text-blue-500 underline mt-1 hover:text-blue-700"
+                              >
+                                🔄 Retry loading referral code
+                              </button>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                    {isKaryawan() && !karyawanReferralCode && !loadingReferralCode && (
+                      <div className="p-3 bg-red-50 border border-red-200 rounded-md">
+                        <p className="text-sm text-red-600">
+                          ⚠️ Anda memerlukan kode referral aktif untuk menambah nasabah. Silakan hubungi administrator.
+                        </p>
+                      </div>
+                    )}
+                    {isKaryawan() && loadingReferralCode && (
+                      <div className="p-3 bg-blue-50 border border-blue-200 rounded-md">
+                        <p className="text-sm text-blue-600">
+                          🔄 Memuat kode referral Anda...
+                        </p>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              </TabsContent>
+            </Tabs>
+          </div>
+          <DialogFooter className="mt-4">
+            <Button variant="outline" onClick={() => setShowCreateForm(false)}>
+              Batal
+            </Button>
+            <Button 
+              onClick={handleCreateCustomer}
+              disabled={isKaryawan() ? (!karyawanReferralCode || loadingReferralCode) : false}
+            >
+              <Save className="mr-2 h-4 w-4" />
+              {isKaryawan() && loadingReferralCode ? "Loading..." : "Simpan Nasabah"}
             </Button>
           </DialogFooter>
         </DialogContent>
