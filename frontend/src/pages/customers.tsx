@@ -122,6 +122,16 @@ export function Customers() {
     file: null as File | null,
   })
   
+  // Document upload state for create customer modal
+  const [createCustomerDocuments, setCreateCustomerDocuments] = useState<{
+    [key: string]: File | null
+  }>({
+    ktp: null,
+    kk: null,
+    sim: null,
+    npwp: null
+  })
+  
   const [newCustomer, setNewCustomer] = useState({
     nik: "",
     name: "",
@@ -382,7 +392,45 @@ export function Customers() {
       console.log("Create customer response:", response)
       
       if (response.success) {
-        showSuccess("Customer Created", "Nasabah berhasil ditambahkan!")
+        const createdCustomer = response.data as Customer
+        
+        // Upload documents if any were selected
+        const uploadPromises = []
+        for (const [docType, file] of Object.entries(createCustomerDocuments)) {
+          if (file) {
+            const fileBuffer = await file.arrayBuffer()
+            const fileData = new Uint8Array(fileBuffer)
+            
+            const uploadPromise = UploadDocument(
+              createdCustomer.id,
+              docType,
+              file.name,
+              Array.from(fileData)
+            )
+            uploadPromises.push(uploadPromise)
+          }
+        }
+        
+        // Wait for all document uploads to complete
+        if (uploadPromises.length > 0) {
+          try {
+            const uploadResults = await Promise.all(uploadPromises)
+            const failedUploads = uploadResults.filter(result => !result.success)
+            
+            if (failedUploads.length > 0) {
+              showSuccess("Customer Created", `Nasabah berhasil ditambahkan! ${failedUploads.length} dokumen gagal diupload.`)
+            } else {
+              showSuccess("Customer Created", `Nasabah berhasil ditambahkan dengan ${uploadPromises.length} dokumen!`)
+            }
+          } catch (uploadError) {
+            console.error("Error uploading documents:", uploadError)
+            showSuccess("Customer Created", "Nasabah berhasil ditambahkan, namun ada masalah dengan upload dokumen.")
+          }
+        } else {
+          showSuccess("Customer Created", "Nasabah berhasil ditambahkan!")
+        }
+        
+        // Reset form and close modal
         setShowCreateForm(false)
         setNewCustomer({
           nik: "",
@@ -397,6 +445,12 @@ export function Customers() {
           occupation: "",
           monthly_income: 0,
           referral_code: "",
+        })
+        setCreateCustomerDocuments({
+          ktp: null,
+          kk: null,
+          sim: null,
+          npwp: null
         })
         loadCustomers()
       } else {
@@ -1324,9 +1378,10 @@ export function Customers() {
           </DialogHeader>
           <div className="overflow-y-auto flex-1 px-1">
             <Tabs defaultValue="personal" className="w-full">
-              <TabsList className="grid w-full grid-cols-3">
+              <TabsList className="grid w-full grid-cols-4">
                 <TabsTrigger value="personal">Data Personal</TabsTrigger>
                 <TabsTrigger value="address">Alamat</TabsTrigger>
+                <TabsTrigger value="documents">Dokumen</TabsTrigger>
                 <TabsTrigger value="other">Lainnya</TabsTrigger>
               </TabsList>
               
@@ -1440,6 +1495,96 @@ export function Customers() {
                           placeholder="12345"
                         />
                       </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </TabsContent>
+              
+              <TabsContent value="documents" className="mt-6">
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-lg">Upload Dokumen</CardTitle>
+                    <CardDescription>Upload dokumen pendukung (opsional)</CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      {[
+                        { type: 'ktp', label: 'KTP', icon: '🆔', required: true },
+                        { type: 'kk', label: 'Kartu Keluarga', icon: '👨‍👩‍👧‍👦', required: false },
+                        { type: 'sim', label: 'SIM', icon: '🚗', required: false },
+                        { type: 'npwp', label: 'NPWP', icon: '📄', required: false }
+                      ].map(({ type, label, icon, required }) => (
+                        <Card key={type} className={`p-4 transition-all ${createCustomerDocuments[type] ? 'border-green-200 bg-green-50' : 'border-gray-200'}`}>
+                          <div className="space-y-3">
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center space-x-2">
+                                <span className="text-lg">{icon}</span>
+                                <div>
+                                  <h4 className="font-medium">{label} {required && <span className="text-red-500">*</span>}</h4>
+                                  {required && (
+                                    <p className="text-xs text-gray-500">Wajib diupload</p>
+                                  )}
+                                </div>
+                              </div>
+                              {createCustomerDocuments[type] && (
+                                <Badge variant="default" className="bg-green-100 text-green-800">
+                                  ✅ Dipilih
+                                </Badge>
+                              )}
+                            </div>
+                            
+                            {createCustomerDocuments[type] ? (
+                              <div className="space-y-2">
+                                <p className="text-sm text-gray-600">
+                                  📎 {createCustomerDocuments[type]?.name}
+                                </p>
+                                <p className="text-xs text-gray-500">
+                                  {((createCustomerDocuments[type]?.size || 0) / 1024 / 1024).toFixed(2)} MB
+                                </p>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => setCreateCustomerDocuments({ 
+                                    ...createCustomerDocuments, 
+                                    [type]: null 
+                                  })}
+                                  className="w-full"
+                                >
+                                  <X className="mr-1 h-3 w-3" />
+                                  Hapus File
+                                </Button>
+                              </div>
+                            ) : (
+                              <div className="space-y-2">
+                                <Input
+                                  type="file"
+                                  accept="image/*,.pdf"
+                                  onChange={(e) => {
+                                    const file = e.target.files?.[0]
+                                    if (file) {
+                                      setCreateCustomerDocuments({ 
+                                        ...createCustomerDocuments, 
+                                        [type]: file 
+                                      })
+                                    }
+                                  }}
+                                  className="cursor-pointer"
+                                />
+                                <p className="text-xs text-gray-500">
+                                  Format: JPG, PNG, PDF. Maks 5MB
+                                </p>
+                              </div>
+                            )}
+                          </div>
+                        </Card>
+                      ))}
+                    </div>
+                    
+                    <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-md">
+                      <p className="text-sm text-blue-700">
+                        💡 <strong>Tips:</strong> Anda dapat mengupload dokumen sekarang atau nanti setelah nasabah dibuat.
+                        KTP sangat direkomendasikan untuk proses verifikasi yang lebih cepat.
+                      </p>
                     </div>
                   </CardContent>
                 </Card>
