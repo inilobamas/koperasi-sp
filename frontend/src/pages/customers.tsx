@@ -358,19 +358,21 @@ export function Customers() {
         referral_code: referralCodeToUse || "",
       }
       
-      // Try using createFrom static method instead
-      let request
+      // Create proper CustomerCreateRequest object
+      let request: services.CustomerCreateRequest
       try {
+        // Try using createFrom static method first
         request = services.CustomerCreateRequest.createFrom(requestData)
       } catch (createFromError) {
         console.error("createFrom failed:", createFromError)
-        // Fallback: try direct constructor
         try {
+          // Fallback: try direct constructor
           request = new services.CustomerCreateRequest(requestData)
         } catch (constructorError) {
           console.error("Constructor failed:", constructorError)
-          // Last resort: use plain object
-          request = requestData
+          // Last resort: create a proper instance manually
+          request = new services.CustomerCreateRequest()
+          Object.assign(request, requestData)
         }
       }
       
