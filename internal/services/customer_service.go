@@ -72,56 +72,64 @@ type CustomerListResponse struct {
 }
 
 func (s *CustomerService) CreateCustomer(req CustomerCreateRequest) (*models.Customer, error) {
-	// Debug logging
-	fmt.Printf("DEBUG - Customer create request received:\n")
-	fmt.Printf("  NIK: '%s' (len=%d)\n", req.NIK, len(req.NIK))
-	fmt.Printf("  Name: '%s' (len=%d)\n", req.Name, len(req.Name))
-	fmt.Printf("  Phone: '%s' (len=%d)\n", req.Phone, len(req.Phone))
-	fmt.Printf("  Email: '%s'\n", req.Email)
+	// Debug logging to file
+	utils.LogDebug("Customer create request received - NIK: '%s' (len=%d), Name: '%s' (len=%d), Phone: '%s' (len=%d), Email: '%s'", 
+		req.NIK, len(req.NIK), req.Name, len(req.Name), req.Phone, len(req.Phone), req.Email)
 	
 	// Validate required fields
 	if err := utils.ValidateRequired(req.NIK, "NIK"); err != nil {
-		fmt.Printf("DEBUG - NIK validation failed: %v\n", err)
+		utils.LogError("NIK validation failed: %v", err)
 		return nil, err
 	}
 	if err := utils.ValidateRequired(req.Name, "Nama"); err != nil {
-		fmt.Printf("DEBUG - Name validation failed: %v\n", err)
+		utils.LogError("Name validation failed: %v", err)
 		return nil, err
 	}
 	if err := utils.ValidateRequired(req.Phone, "Nomor Telepon"); err != nil {
-		fmt.Printf("DEBUG - Phone validation failed: %v\n", err)
+		utils.LogError("Phone validation failed: %v", err)
 		return nil, err
 	}
 
 	// Validate NIK
+	utils.LogDebug("Validating NIK...")
 	if err := utils.ValidateNIK(req.NIK); err != nil {
+		utils.LogError("NIK validation failed: %v", err)
 		return nil, err
 	}
 
 	// Validate phone
+	utils.LogDebug("Validating phone...")
 	if err := utils.ValidateIndonesianPhone(req.Phone); err != nil {
+		utils.LogError("Phone validation failed: %v", err)
 		return nil, err
 	}
 
 	// Validate email if provided
 	if req.Email != "" {
+		utils.LogDebug("Validating email...")
 		if err := utils.ValidateEmail(req.Email); err != nil {
+			utils.LogError("Email validation failed: %v", err)
 			return nil, err
 		}
 	}
 
 	// Check if NIK already exists
+	utils.LogDebug("Encrypting NIK...")
 	encryptedNIK, err := utils.Encrypt(req.NIK)
 	if err != nil {
+		utils.LogError("Failed to encrypt NIK: %v", err)
 		return nil, fmt.Errorf("failed to encrypt NIK: %v", err)
 	}
 
+	utils.LogDebug("Checking if NIK already exists...")
 	var existingID string
 	err = s.db.QueryRow("SELECT id FROM customers WHERE nik = ?", encryptedNIK).Scan(&existingID)
 	if err != sql.ErrNoRows {
 		if err == nil {
+			utils.LogError("NIK already registered")
 			return nil, fmt.Errorf("NIK sudah terdaftar")
 		}
+		utils.LogError("Failed to check existing NIK: %v", err)
 		return nil, fmt.Errorf("failed to check existing NIK: %v", err)
 	}
 
@@ -142,26 +150,35 @@ func (s *CustomerService) CreateCustomer(req CustomerCreateRequest) (*models.Cus
 	// Get referral code if provided
 	var referralCodeID *uuid.UUID
 	if req.ReferralCode != "" {
+		utils.LogDebug("Checking referral code: %s", req.ReferralCode)
 		var refID string
 		var quota, used int
-		err = s.db.QueryRow(`
+		
+		// This is the query that might be causing the ambiguous column name error
+		referralQuery := `
 			SELECT id, quota, used 
 			FROM referral_codes 
-			WHERE code = ? AND active = true AND (expires_at IS NULL OR expires_at > datetime('now'))`,
-			req.ReferralCode).Scan(&refID, &quota, &used)
+			WHERE code = ? AND active = true AND (expires_at IS NULL OR expires_at > datetime('now'))`
+		
+		utils.LogDebug("Executing referral code query: %s", referralQuery)
+		err = s.db.QueryRow(referralQuery, req.ReferralCode).Scan(&refID, &quota, &used)
 		if err != nil {
 			if err == sql.ErrNoRows {
+				utils.LogError("Referral code not found or expired: %s", req.ReferralCode)
 				return nil, fmt.Errorf("kode referral tidak valid atau sudah kadaluarsa")
 			}
+			utils.LogError("Failed to check referral code '%s': %v", req.ReferralCode, err)
 			return nil, fmt.Errorf("failed to check referral code: %v", err)
 		}
 
 		if used >= quota {
+			utils.LogError("Referral code quota exceeded: %s (used: %d, quota: %d)", req.ReferralCode, used, quota)
 			return nil, fmt.Errorf("kode referral sudah mencapai batas penggunaan")
 		}
 
 		if parsedUUID, err := uuid.Parse(refID); err == nil {
 			referralCodeID = &parsedUUID
+			utils.LogDebug("Referral code validated successfully: %s", req.ReferralCode)
 		}
 	}
 
@@ -192,22 +209,29 @@ func (s *CustomerService) CreateCustomer(req CustomerCreateRequest) (*models.Cus
 	}
 
 	// Insert customer
+	utils.LogDebug("Inserting customer into database...")
 	var referralCodeIDStr *string
 	if referralCodeID != nil {
 		str := referralCodeID.String()
 		referralCodeIDStr = &str
 	}
 
-	_, err = s.db.Exec(`
+	insertQuery := `
 		INSERT INTO customers 
 		(id, nik, name, email, phone, date_of_birth, address, city, province, postal_code, occupation, monthly_income, referral_code_id, status, ktp_verified)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+	
+	utils.LogDebug("Insert query: %s", insertQuery)
+	_, err = s.db.Exec(insertQuery,
 		customer.ID.String(), encryptedNIK, customer.Name, encryptedEmail, encryptedPhone,
 		customer.DateOfBirth, customer.Address, customer.City, customer.Province, customer.PostalCode,
 		customer.Occupation, customer.MonthlyIncome, referralCodeIDStr, string(customer.Status), customer.KTPVerified)
 	if err != nil {
+		utils.LogError("Failed to insert customer: %v", err)
 		return nil, fmt.Errorf("failed to insert customer: %v", err)
 	}
+	
+	utils.LogInfo("Customer created successfully with ID: %s", customer.ID.String())
 
 	// Update referral code usage if applicable
 	if referralCodeID != nil {
@@ -370,26 +394,39 @@ func (s *CustomerService) ListCustomers(req CustomerListRequest) (*CustomerListR
 
 	// Removed owner user ID filter - show all customers to everyone
 
-	// Add ordering and pagination
-	queryBuilder.WriteString(" ORDER BY created_at DESC LIMIT ? OFFSET ?")
+	// Add ordering and pagination (specify table alias to avoid ambiguity)
+	queryBuilder.WriteString(" ORDER BY c.created_at DESC LIMIT ? OFFSET ?")
 	args = append(args, req.Limit, offset)
 
 	// Debug logging
 	utils.LogDebug("Generated SQL query: %s", queryBuilder.String())
 	utils.LogDebug("Query args: %v", args)
 
+	// First, let's test if there are ANY customers in the database at all
+	var totalCustomers int
+	testErr := s.db.QueryRow("SELECT COUNT(*) FROM customers").Scan(&totalCustomers)
+	if testErr != nil {
+		utils.LogError("Failed to count total customers: %v", testErr)
+	} else {
+		utils.LogDebug("Total customers in database: %d", totalCustomers)
+	}
+
 	// Execute query
+	utils.LogDebug("About to execute query...")
 	rows, err := s.db.Query(queryBuilder.String(), args...)
 	if err != nil {
 		utils.LogError("Query error: %v", err)
 		return nil, fmt.Errorf("failed to query customers: %v", err)
 	}
 	defer rows.Close()
+	utils.LogDebug("Query executed successfully, starting to process rows...")
 
 	customers := make([]models.Customer, 0)
 	rowCount := 0
+	utils.LogDebug("Starting rows.Next() loop...")
 	for rows.Next() {
 		rowCount++
+		utils.LogDebug("Processing row %d", rowCount)
 		var customer models.Customer
 		var encryptedNIK, encryptedEmail, encryptedPhone string
 		var referralCodeIDStr *string
