@@ -195,8 +195,8 @@ export function Customers() {
         search: searchTerm,
         status: statusFilter,
         verified: verifiedFilter,
-        // Only filter by owner_user_id for karyawan role
-        owner_user_id: isKaryawan() ? user?.id || "" : "",
+        // Show all customers to everyone
+        owner_user_id: "",
       })
       
       const response = await ListCustomers(request)

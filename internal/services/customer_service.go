@@ -364,11 +364,7 @@ func (s *CustomerService) ListCustomers(req CustomerListRequest) (*CustomerListR
 		args = append(args, *req.Verified)
 	}
 
-	// Add owner user ID filter (for karyawan to see only their customers, but superadmin/admin see all)
-	if req.OwnerUserID != "" {
-		queryBuilder.WriteString(" AND (rc.owner_user_id = ? OR c.referral_code_id IS NULL)")
-		args = append(args, req.OwnerUserID)
-	}
+	// Removed owner user ID filter - show all customers to everyone
 
 	// Add ordering and pagination
 	queryBuilder.WriteString(" ORDER BY created_at DESC LIMIT ? OFFSET ?")
@@ -440,10 +436,7 @@ func (s *CustomerService) ListCustomers(req CustomerListRequest) (*CustomerListR
 		countArgs = append(countArgs, *req.Verified)
 	}
 
-	if req.OwnerUserID != "" {
-		countQuery.WriteString(" AND (rc.owner_user_id = ? OR c.referral_code_id IS NULL)")
-		countArgs = append(countArgs, req.OwnerUserID)
-	}
+	// Removed owner user ID filter from count query too
 
 	var total int
 	err = s.db.QueryRow(countQuery.String(), countArgs...).Scan(&total)
