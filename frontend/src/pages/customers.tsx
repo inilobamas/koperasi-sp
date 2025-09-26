@@ -339,8 +339,8 @@ export function Customers() {
       // Ensure date is properly formatted
       const dateOfBirth = newCustomer.date_of_birth ? new Date(newCustomer.date_of_birth) : new Date()
       
-      // Create request object using createFrom static method to avoid constructor issues
-      const requestData = {
+      // Create request object using direct constructor to avoid any issues
+      const request = new services.CustomerCreateRequest({
         nik: nikTrimmed,
         name: nameTrimmed,
         email: newCustomer.email?.trim() || "",
@@ -353,9 +353,7 @@ export function Customers() {
         occupation: newCustomer.occupation?.trim() || "",
         monthly_income: newCustomer.monthly_income || 0,
         referral_code: referralCodeToUse || "",
-      }
-      
-      const request = services.CustomerCreateRequest.createFrom(requestData)
+      })
       
       console.log("Customer create request:", request)
       

@@ -170,27 +170,46 @@ func (s *Seeder) seedReferralCodes() error {
 }
 
 func (s *Seeder) seedCustomers() error {
-	// Get some referral codes
-	rows, err := s.db.Query("SELECT id FROM referral_codes LIMIT 20")
+	// Get referral codes from karyawan users specifically to ensure fair distribution
+	rows, err := s.db.Query(`
+		SELECT rc.id, u.email 
+		FROM referral_codes rc 
+		JOIN users u ON rc.owner_user_id = u.id 
+		WHERE u.role = 'karyawan' 
+		ORDER BY u.email`)
 	if err != nil {
 		return err
 	}
 	defer rows.Close()
 
-	var referralCodeIDs []string
+	type ReferralInfo struct {
+		ID    string
+		Email string
+	}
+
+	var referralCodes []ReferralInfo
 	for rows.Next() {
-		var id string
-		if err := rows.Scan(&id); err != nil {
+		var info ReferralInfo
+		if err := rows.Scan(&info.ID, &info.Email); err != nil {
 			return err
 		}
-		referralCodeIDs = append(referralCodeIDs, id)
+		referralCodes = append(referralCodes, info)
 	}
 
 	cities := []string{"Jakarta", "Surabaya", "Bandung", "Medan", "Semarang", "Makassar", "Palembang", "Tangerang"}
 	provinces := []string{"DKI Jakarta", "Jawa Timur", "Jawa Barat", "Sumatera Utara", "Jawa Tengah", "Sulawesi Selatan", "Sumatera Selatan", "Banten"}
 	occupations := []string{"Karyawan Swasta", "Wiraswasta", "PNS", "TNI/Polri", "Guru", "Dokter", "Petani", "Buruh"}
 
-	for i := 1; i <= 200; i++ {
+	// Ensure we have referral codes to distribute
+	if len(referralCodes) == 0 {
+		log.Println("No karyawan referral codes found, creating customers without referral codes")
+	}
+
+	// Calculate customers per karyawan for fair distribution
+	totalCustomers := 200
+	customersWithReferral := int(float64(totalCustomers) * 0.85) // 85% get referral codes
+	
+	for i := 1; i <= totalCustomers; i++ {
 		customer := models.Customer{
 			ID:            uuid.New(),
 			NIK:           generateNIK(),
@@ -208,12 +227,20 @@ func (s *Seeder) seedCustomers() error {
 			KTPVerified:   randomBool(),
 		}
 
-		// 70% chance of having a referral code
-		if randomInt(1, 100) <= 70 && len(referralCodeIDs) > 0 {
-			referralCodeID := referralCodeIDs[randomInt(0, len(referralCodeIDs))]
+		// Distribute customers fairly among karyawan referral codes
+		if i <= customersWithReferral && len(referralCodes) > 0 {
+			// Use round-robin distribution to ensure fair allocation
+			referralIndex := (i - 1) % len(referralCodes)
+			referralCodeID := referralCodes[referralIndex].ID
+			
 			customer.ReferralCodeID = &uuid.UUID{}
 			if parsedUUID, err := uuid.Parse(referralCodeID); err == nil {
 				customer.ReferralCodeID = &parsedUUID
+			}
+			
+			// Log for first few assignments to verify distribution
+			if i <= 10 {
+				log.Printf("Customer %d assigned to %s (referral: %s)", i, referralCodes[referralIndex].Email, referralCodeID)
 			}
 		}
 
@@ -239,7 +266,21 @@ func (s *Seeder) seedCustomers() error {
 		}
 	}
 
-	log.Println("Seeded 200 customers")
+	// Log final distribution summary
+	if len(referralCodes) > 0 {
+		customersPerKaryawan := customersWithReferral / len(referralCodes)
+		remainder := customersWithReferral % len(referralCodes)
+		log.Printf("Seeded 200 customers with fair distribution:")
+		log.Printf("- %d customers have referral codes (85%%)", customersWithReferral)
+		log.Printf("- Each of %d karyawan gets ~%d customers", len(referralCodes), customersPerKaryawan)
+		if remainder > 0 {
+			log.Printf("- First %d karyawan get 1 extra customer", remainder)
+		}
+		log.Printf("- karyawan1@koperasi.com is guaranteed to have customers")
+	} else {
+		log.Println("Seeded 200 customers without referral codes (no karyawan found)")
+	}
+	
 	return nil
 }
 
