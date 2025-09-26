@@ -195,8 +195,8 @@ export function Customers() {
         search: searchTerm,
         status: statusFilter,
         verified: verifiedFilter,
-        // Show all customers to everyone
-        owner_user_id: "",
+        // Only filter by owner_user_id for karyawan role (superadmin and admin see all)
+        owner_user_id: isKaryawan() ? user?.id || "" : "",
       })
       
       const response = await ListCustomers(request)
@@ -339,8 +339,8 @@ export function Customers() {
       // Ensure date is properly formatted
       const dateOfBirth = newCustomer.date_of_birth ? new Date(newCustomer.date_of_birth) : new Date()
       
-      // Create request object using direct constructor to avoid any issues
-      const request = new services.CustomerCreateRequest({
+      // Create request object as plain object to avoid constructor issues
+      const requestData = {
         nik: nikTrimmed,
         name: nameTrimmed,
         email: newCustomer.email?.trim() || "",
@@ -353,7 +353,23 @@ export function Customers() {
         occupation: newCustomer.occupation?.trim() || "",
         monthly_income: newCustomer.monthly_income || 0,
         referral_code: referralCodeToUse || "",
-      })
+      }
+      
+      // Try using createFrom static method instead
+      let request
+      try {
+        request = services.CustomerCreateRequest.createFrom(requestData)
+      } catch (createFromError) {
+        console.error("createFrom failed:", createFromError)
+        // Fallback: try direct constructor
+        try {
+          request = new services.CustomerCreateRequest(requestData)
+        } catch (constructorError) {
+          console.error("Constructor failed:", constructorError)
+          // Last resort: use plain object
+          request = requestData
+        }
+      }
       
       console.log("Customer create request:", request)
       
