@@ -36,7 +36,7 @@ import {
   ArrowDown,
 } from "lucide-react"
 import { formatCurrency } from "@/lib/utils"
-import { CreateCustomer, ListCustomers, GetCustomer, UpdateCustomer, DeleteCustomer, UploadDocument, ListDocuments, ListReferralCodes } from "../../wailsjs/go/main/App"
+import { CreateCustomer, ListCustomers, GetCustomer, UpdateCustomer, DeleteCustomer, UploadDocument, ListDocuments, ListReferralCodes, GetDocumentFile } from "../../wailsjs/go/main/App"
 import { services } from "../../wailsjs/go/models"
 import { usePermissions } from "@/hooks/usePermissions"
 
@@ -97,6 +97,9 @@ export function Customers() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [customerToDelete, setCustomerToDelete] = useState<string | null>(null)
   const [showDocumentUpload, setShowDocumentUpload] = useState(false)
+  const [showDocumentViewer, setShowDocumentViewer] = useState(false)
+  const [selectedDocumentPath, setSelectedDocumentPath] = useState("")
+  const [selectedDocumentName, setSelectedDocumentName] = useState("")
   const [karyawanReferralCode, setKaryawanReferralCode] = useState("")
   const [loadingReferralCode, setLoadingReferralCode] = useState(false)
   
@@ -510,6 +513,22 @@ export function Customers() {
     }
   }
 
+  const handleViewDocument = async (documentId: string, documentName: string) => {
+    try {
+      const filePath = await GetDocumentFile(documentId)
+      if (filePath) {
+        setSelectedDocumentPath(filePath)
+        setSelectedDocumentName(documentName)
+        setShowDocumentViewer(true)
+      } else {
+        showError("Error", "Dokumen tidak ditemukan")
+      }
+    } catch (error) {
+      console.error("Error viewing document:", error)
+      showError("Error", "Gagal membuka dokumen")
+    }
+  }
+
   const getStatusBadge = (status: string, verified: boolean) => {
     if (status === 'active' && verified) {
       return <Badge variant="default" className="bg-green-100 text-green-800">Aktif</Badge>
@@ -599,97 +618,103 @@ export function Customers() {
         )}
       </div>
 
-      {/* Filters */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center">
-            <Filter className="mr-2 h-5 w-5" />
-            Filter & Pencarian
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
-            <div className="md:col-span-2">
-              <Label htmlFor="search">Cari Nasabah</Label>
-              <div className="relative">
-                <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-                <Input
-                  id="search"
-                  placeholder="Nama, alamat, atau kota..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-8"
-                />
-              </div>
-            </div>
-            <div>
-              <Label htmlFor="status">Status</Label>
+      {/* Seamless Filter Bar */}
+      <div className="bg-white border border-gray-200 rounded-lg shadow-sm">
+        {/* Search Bar - Prominent */}
+        <div className="p-4 border-b border-gray-100">
+          <div className="relative max-w-md">
+            <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+            <Input
+              placeholder="Cari nasabah berdasarkan nama, alamat, atau kota..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-10 h-11 border-gray-300 focus:border-blue-500 focus:ring-blue-500"
+            />
+          </div>
+        </div>
+        
+        {/* Filters - Collapsible */}
+        <div className="p-4">
+          <div className="flex flex-wrap items-center gap-3">
+            {/* Status Filter */}
+            <div className="flex items-center space-x-2">
+              <span className="text-sm font-medium text-gray-600 whitespace-nowrap">Status:</span>
               <select
-                id="status"
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value)}
-                className="w-full h-10 px-3 rounded-md border border-input bg-background"
+                className="h-9 px-3 text-sm rounded-md border border-gray-300 bg-white focus:border-blue-500 focus:ring-blue-500"
               >
-                <option value="">Semua Status</option>
+                <option value="">Semua</option>
                 <option value="pending">Pending</option>
                 <option value="active">Aktif</option>
                 <option value="inactive">Tidak Aktif</option>
                 <option value="blocked">Diblokir</option>
               </select>
             </div>
-            <div>
-              <Label htmlFor="verified">Verifikasi KTP</Label>
+
+            {/* Verification Filter */}
+            <div className="flex items-center space-x-2">
+              <span className="text-sm font-medium text-gray-600 whitespace-nowrap">KTP:</span>
               <select
-                id="verified"
                 value={verifiedFilter === undefined ? "" : verifiedFilter.toString()}
                 onChange={(e) => setVerifiedFilter(e.target.value === "" ? undefined : e.target.value === "true")}
-                className="w-full h-10 px-3 rounded-md border border-input bg-background"
+                className="h-9 px-3 text-sm rounded-md border border-gray-300 bg-white focus:border-blue-500 focus:ring-blue-500"
               >
                 <option value="">Semua</option>
                 <option value="true">Terverifikasi</option>
                 <option value="false">Belum Terverifikasi</option>
               </select>
             </div>
-            <div>
-              <Label htmlFor="sortBy">Urutkan Berdasarkan</Label>
+
+            {/* Sort Options */}
+            <div className="flex items-center space-x-2">
+              <span className="text-sm font-medium text-gray-600 whitespace-nowrap">Urutkan:</span>
               <select
-                id="sortBy"
                 value={sortBy}
                 onChange={(e) => setSortBy(e.target.value)}
-                className="w-full h-10 px-3 rounded-md border border-input bg-background"
+                className="h-9 px-3 text-sm rounded-md border border-gray-300 bg-white focus:border-blue-500 focus:ring-blue-500"
               >
-                <option value="">Tanggal Daftar</option>
-                <option value="name">Nama</option>
+                <option value="">Tanggal Terbaru</option>
+                <option value="name">Nama A-Z</option>
                 <option value="nik">NIK</option>
                 <option value="city">Kota</option>
               </select>
-            </div>
-            <div className="flex items-end space-x-2">
-              <Button 
+              <Button
                 variant="outline"
-                size="icon"
+                size="sm"
                 onClick={() => setSortOrder(sortOrder === "asc" ? "desc" : "asc")}
-                className="shrink-0"
+                className="h-9 px-2 border-gray-300"
               >
                 {sortOrder === "asc" ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />}
               </Button>
-              <Button 
-                variant="outline" 
-                onClick={() => {
-                  setSearchTerm("")
-                  setStatusFilter("")
-                  setVerifiedFilter(undefined)
-                  setSortBy("")
-                  setSortOrder("asc")
-                }}
-                className="whitespace-nowrap"
-              >
-                Reset Filter
-              </Button>
             </div>
+
+            {/* Active Filters Indicator */}
+            {(searchTerm || statusFilter || verifiedFilter !== undefined || sortBy) && (
+              <div className="flex items-center space-x-2 ml-auto">
+                <span className="text-sm text-gray-500">
+                  {[searchTerm, statusFilter, verifiedFilter !== undefined ? 'KTP Filter' : null, sortBy].filter(Boolean).length} filter aktif
+                </span>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    setSearchTerm("")
+                    setStatusFilter("")
+                    setVerifiedFilter(undefined)
+                    setSortBy("")
+                    setSortOrder("asc")
+                  }}
+                  className="h-8 px-2 text-gray-500 hover:text-gray-700"
+                >
+                  <X className="h-3 w-3 mr-1" />
+                  Reset
+                </Button>
+              </div>
+            )}
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
 
       {/* Role Info for Karyawan */}
       {isKaryawan() && (
@@ -1176,12 +1201,23 @@ export function Customers() {
                           const doc = selectedCustomer.documents?.find(d => d.type === docType)
                           const label = docType === 'ktp' ? 'KTP' : docType === 'kk' ? 'Kartu Keluarga' : docType === 'sim' ? 'SIM' : 'NPWP'
                           return (
-                            <Card key={docType} className="p-4">
+                            <Card key={docType} className={`p-4 transition-colors ${doc ? 'hover:bg-gray-50 cursor-pointer' : ''}`}
+                                  onClick={() => doc && handleViewDocument(doc.id, doc.original_name)}>
                               <div className="flex items-center justify-between">
-                                <div>
-                                  <h4 className="font-medium">{label}</h4>
+                                <div className="flex-1">
+                                  <div className="flex items-center space-x-2">
+                                    <h4 className="font-medium">{label}</h4>
+                                    {doc && (
+                                      <Eye className="h-3 w-3 text-blue-500" />
+                                    )}
+                                  </div>
                                   {doc && (
-                                    <p className="text-xs text-muted-foreground">{doc.original_name}</p>
+                                    <p className="text-xs text-muted-foreground mt-1">{doc.original_name}</p>
+                                  )}
+                                  {doc && (
+                                    <p className="text-xs text-blue-500 font-medium">
+                                      Klik untuk melihat dokumen
+                                    </p>
                                   )}
                                 </div>
                                 <div className="text-right">
@@ -1189,17 +1225,17 @@ export function Customers() {
                                     <div className="space-y-1">
                                       {doc.status === 'verified' && (
                                         <Badge variant="default" className="bg-green-100 text-green-800">
-                                          ✅ Verified
+                                          ✅ Terverifikasi
                                         </Badge>
                                       )}
                                       {doc.status === 'pending' && (
-                                        <Badge variant="secondary">
-                                          ⏳ Pending
+                                        <Badge variant="secondary" className="bg-yellow-100 text-yellow-800">
+                                          ⏳ Menunggu Verifikasi
                                         </Badge>
                                       )}
                                       {doc.status === 'rejected' && (
                                         <Badge variant="destructive">
-                                          ❌ Rejected
+                                          ❌ Ditolak
                                         </Badge>
                                       )}
                                       <p className="text-xs text-muted-foreground">
@@ -1437,6 +1473,61 @@ export function Customers() {
             >
               <Upload className="mr-2 h-4 w-4" />
               Upload
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Document Viewer Modal */}
+      <Dialog open={showDocumentViewer} onOpenChange={setShowDocumentViewer}>
+        <DialogContent className="max-w-4xl max-h-[90vh]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center space-x-2">
+              <FileText className="h-5 w-5" />
+              <span>Lihat Dokumen</span>
+            </DialogTitle>
+            <DialogDescription>
+              {selectedDocumentName}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex-1 overflow-hidden">
+            {selectedDocumentPath && (
+              <div className="w-full h-[70vh] border rounded-lg overflow-hidden">
+                {selectedDocumentPath.toLowerCase().endsWith('.pdf') ? (
+                  <iframe
+                    src={`file://${selectedDocumentPath}`}
+                    className="w-full h-full"
+                    title={selectedDocumentName}
+                  />
+                ) : (
+                  <img
+                    src={`file://${selectedDocumentPath}`}
+                    alt={selectedDocumentName}
+                    className="w-full h-full object-contain bg-gray-50"
+                    onError={(e) => {
+                      console.error("Error loading image:", e)
+                      // Fallback: try to open in system viewer
+                      e.currentTarget.style.display = 'none'
+                    }}
+                  />
+                )}
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button 
+              variant="outline"
+              onClick={() => {
+                // Open file in system viewer
+                if (selectedDocumentPath) {
+                  window.open(`file://${selectedDocumentPath}`, '_blank')
+                }
+              }}
+            >
+              Buka di App Eksternal
+            </Button>
+            <Button onClick={() => setShowDocumentViewer(false)}>
+              Tutup
             </Button>
           </DialogFooter>
         </DialogContent>
