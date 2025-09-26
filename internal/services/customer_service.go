@@ -324,6 +324,10 @@ func (s *CustomerService) UpdateCustomer(id string, req CustomerUpdateRequest) (
 }
 
 func (s *CustomerService) ListCustomers(req CustomerListRequest) (*CustomerListResponse, error) {
+	// Debug logging
+	utils.LogDebug("ListCustomers request - Page: %d, Limit: %d, Search: '%s', Status: '%s', Verified: %v, OwnerUserID: '%s'",
+		req.Page, req.Limit, req.Search, req.Status, req.Verified, req.OwnerUserID)
+
 	// Set defaults
 	if req.Page < 1 {
 		req.Page = 1
@@ -370,15 +374,22 @@ func (s *CustomerService) ListCustomers(req CustomerListRequest) (*CustomerListR
 	queryBuilder.WriteString(" ORDER BY created_at DESC LIMIT ? OFFSET ?")
 	args = append(args, req.Limit, offset)
 
+	// Debug logging
+	utils.LogDebug("Generated SQL query: %s", queryBuilder.String())
+	utils.LogDebug("Query args: %v", args)
+
 	// Execute query
 	rows, err := s.db.Query(queryBuilder.String(), args...)
 	if err != nil {
+		utils.LogError("Query error: %v", err)
 		return nil, fmt.Errorf("failed to query customers: %v", err)
 	}
 	defer rows.Close()
 
 	customers := make([]models.Customer, 0)
+	rowCount := 0
 	for rows.Next() {
+		rowCount++
 		var customer models.Customer
 		var encryptedNIK, encryptedEmail, encryptedPhone string
 		var referralCodeIDStr *string
@@ -390,6 +401,7 @@ func (s *CustomerService) ListCustomers(req CustomerListRequest) (*CustomerListR
 			&referralCodeIDStr, &customer.Status, &customer.KTPVerified,
 			&customer.CreatedAt, &customer.UpdatedAt)
 		if err != nil {
+			utils.LogError("Scan error on row %d: %v", rowCount, err)
 			return nil, fmt.Errorf("failed to scan customer: %v", err)
 		}
 
@@ -413,6 +425,8 @@ func (s *CustomerService) ListCustomers(req CustomerListRequest) (*CustomerListR
 
 		customers = append(customers, customer)
 	}
+
+	utils.LogDebug("Found %d customer rows, processed %d customers", rowCount, len(customers))
 
 	// Get total count
 	countQuery := strings.Builder{}
@@ -441,15 +455,21 @@ func (s *CustomerService) ListCustomers(req CustomerListRequest) (*CustomerListR
 	var total int
 	err = s.db.QueryRow(countQuery.String(), countArgs...).Scan(&total)
 	if err != nil {
+		utils.LogError("Count query error: %v", err)
 		return nil, fmt.Errorf("failed to count customers: %v", err)
 	}
 
-	return &CustomerListResponse{
+	utils.LogDebug("Total count: %d", total)
+
+	response := &CustomerListResponse{
 		Customers: customers,
 		Total:     total,
 		Page:      req.Page,
 		Limit:     req.Limit,
-	}, nil
+	}
+
+	utils.LogInfo("Returning response with %d customers, total: %d, page: %d", len(response.Customers), response.Total, response.Page)
+	return response, nil
 }
 
 func (s *CustomerService) DeleteCustomer(id string) error {
